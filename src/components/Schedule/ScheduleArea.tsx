@@ -5,11 +5,19 @@ import { MONTHS_RU, addDays, addWeeks } from '../../utils/dateUtils'
 import WeekView from './WeekView'
 import DayView from './DayView'
 import SlotModal from '../Modals/SlotModal'
+import SlotPopover from '../Modals/SlotPopover'
 
 export default function ScheduleArea() {
   const { state, dispatch } = useSchedule()
   const [viewDropOpen, setViewDropOpen] = useState(false)
   const [createDropOpen, setCreateDropOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+
+  const closeAll = () => {
+    setEditOpen(false)
+    dispatch({ type: 'SELECT_SLOT', payload: null })
+    dispatch({ type: 'SET_CREATE_MODAL', payload: null })
+  }
 
   const goBack = () => {
     if (state.viewMode === 'week') dispatch({ type: 'SET_DATE', payload: addWeeks(state.selectedDate, -1) })
@@ -138,8 +146,21 @@ export default function ScheduleArea() {
         {viewMode === 'week' ? <WeekView /> : <DayView />}
       </div>
 
-      {/* Modals */}
-      <SlotModal />
+      {/* Popover: shown when a slot is selected (no edit modal open) */}
+      {state.selectedSlot && state.selectedSlotRect && !editOpen && (
+        <SlotPopover
+          slot={state.selectedSlot}
+          rect={state.selectedSlotRect}
+          onClose={closeAll}
+          onEdit={() => setEditOpen(true)}
+        />
+      )}
+
+      {/* Full edit / create modal */}
+      <SlotModal
+        isOpen={editOpen || !!state.createModalState}
+        onClose={closeAll}
+      />
     </div>
   )
 }

@@ -8,6 +8,13 @@ export interface CreateModalState {
   columnKey: string
 }
 
+export interface SlotRect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 interface State {
   appPage: AppPage
   locationTab: LocationTab
@@ -19,6 +26,7 @@ interface State {
   selectedSpaceIds: string[]
   slots: Slot[]
   selectedSlot: Slot | null
+  selectedSlotRect: SlotRect | null
   dragState: DragState | null
   createModalState: CreateModalState | null
 }
@@ -33,6 +41,7 @@ type Action =
   | { type: 'TOGGLE_SPECIALIST'; payload: string }
   | { type: 'TOGGLE_SPACE'; payload: string }
   | { type: 'SELECT_SLOT'; payload: Slot | null }
+  | { type: 'SET_SLOT_RECT'; payload: SlotRect | null }
   | { type: 'SET_DRAG'; payload: DragState | null }
   | { type: 'SET_CREATE_MODAL'; payload: CreateModalState | null }
   | { type: 'ADD_SLOT'; payload: Slot }
@@ -50,6 +59,7 @@ const initialState: State = {
   selectedSpaceIds: ['zal-a'],
   slots: SLOTS,
   selectedSlot: null,
+  selectedSlotRect: null,
   dragState: null,
   createModalState: null,
 }
@@ -73,12 +83,13 @@ function reducer(state: State, action: Action): State {
       const ids = state.selectedSpaceIds
       return { ...state, selectedSpaceIds: ids.includes(action.payload) ? ids.filter(id => id !== action.payload) : [...ids, action.payload] }
     }
-    case 'SELECT_SLOT': return { ...state, selectedSlot: action.payload }
+    case 'SELECT_SLOT': return { ...state, selectedSlot: action.payload, selectedSlotRect: null }
+    case 'SET_SLOT_RECT': return { ...state, selectedSlotRect: action.payload }
     case 'SET_DRAG': return { ...state, dragState: action.payload }
     case 'SET_CREATE_MODAL': return { ...state, createModalState: action.payload }
     case 'ADD_SLOT': return { ...state, slots: [...state.slots, action.payload] }
     case 'UPDATE_SLOT': return { ...state, slots: state.slots.map(s => s.id === action.payload.id ? action.payload : s) }
-    case 'DELETE_SLOT': return { ...state, slots: state.slots.filter(s => s.id !== action.payload), selectedSlot: null }
+    case 'DELETE_SLOT': return { ...state, slots: state.slots.filter(s => s.id !== action.payload), selectedSlot: null, selectedSlotRect: null }
     default: return state
   }
 }

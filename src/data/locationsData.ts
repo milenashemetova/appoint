@@ -13,13 +13,13 @@ export interface Company {
 }
 
 export const COMPANIES: Company[] = [
-  { id: 'svc', name: 'ООО Сервисный дизайн' },
-  { id: 'ip', name: 'ИП Петрова М.' },
+  { id: 'active-pro',    name: 'АктивПро' },
+  { id: 'sport-formula', name: 'СпортФормула' },
 ]
 
 export const LOCATIONS: Location[] = [
-  { id: 'reshape',  name: 'Локация «Reshape»',    companyId: 'svc', isActive: true,  initial: 'R', color: '#6366f1' },
-  { id: 'fitness',  name: 'Fitness Studio',        companyId: 'svc', isActive: false, initial: 'F', color: '#0ea5e9' },
-  { id: 'yoga',     name: 'Yoga Center',           companyId: 'ip',  isActive: false, initial: 'Y', color: '#10b981' },
-  { id: 'wellness', name: 'Wellness & Spa',        companyId: 'ip',  isActive: false, initial: 'W', color: '#f59e0b' },
+  { id: 'reshape',     name: 'Reshape Белорусская',                companyId: 'active-pro',    isActive: true,  initial: 'RБ', color: '#6366f1' },
+  { id: 'reshape-ko',  name: 'Reshape Красный октябрь',            companyId: 'active-pro',    isActive: false, initial: 'RБ', color: '#8b5cf6' },
+  { id: 'gruzinskaya', name: 'Большая Грузинская ул., 12, стр. 2', companyId: 'active-pro',    isActive: false, initial: 'БГ', color: '#a78bfa' },
+  { id: 'sf-reshape',  name: 'Reshape Белорусская',                companyId: 'sport-formula', isActive: false, initial: 'RБ', color: '#10b981' },
 ]

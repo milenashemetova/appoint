@@ -124,14 +124,7 @@ export default function WeekView() {
                 {isT && <CurrentTimeLine />}
 
                 {laid.map(({ slot, col, numCols }) => (
-                  <SlotCard
-                    key={slot.id}
-                    slot={slot}
-                    col={col}
-                    numCols={numCols}
-                    compact
-                    onClick={() => dispatch({ type: 'SELECT_SLOT', payload: slot })}
-                  />
+                  <SlotCard key={slot.id} slot={slot} col={col} numCols={numCols} compact />
                 ))}
 
                 {/* Drag preview */}

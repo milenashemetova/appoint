@@ -34,11 +34,15 @@ const REPEAT_OPTIONS: { value: RepeatMode; label: string }[] = [
   { value: 'weekdays', label: 'По будням' },
 ]
 
-export default function SlotModal() {
+interface SlotModalProps {
+  isOpen: boolean
+  onClose: () => void
+}
+
+export default function SlotModal({ isOpen, onClose }: SlotModalProps) {
   const { state, dispatch, specialists, spaces } = useSchedule()
   const { selectedSlot, createModalState } = state
 
-  const isOpen = !!(selectedSlot || createModalState)
   const isEdit = !!selectedSlot
   const baseDate = selectedSlot?.start ?? createModalState?.startTime ?? new Date()
 
@@ -66,10 +70,7 @@ export default function SlotModal() {
 
   const set = (k: keyof FormData, v: string) => setForm(f => ({ ...f, [k]: v }))
 
-  const close = () => {
-    dispatch({ type: 'SELECT_SLOT', payload: null })
-    dispatch({ type: 'SET_CREATE_MODAL', payload: null })
-  }
+  const close = () => onClose()
 
   const save = () => {
     const start = fromTimeStr(baseDate, form.startTime)

@@ -1,14 +1,14 @@
 import type { LocationTab } from '../types'
 
 const LABELS: Record<LocationTab, string> = {
-  requests: 'Заявки',
-  schedule: 'Расписание',
-  services: 'Вид работ',
+  requests:    'Заявки',
+  schedule:    'Расписание',
+  finances:    'Финансы',
   specialists: 'Специалисты',
-  events: 'Услуги и события',
-  spaces: 'Пространства',
-  content: 'Контент',
-  info: 'Основная информация',
+  spaces:      'Пространства',
+  services:    'Виды работ',
+  reviews:     'Отзывы',
+  settings:    'Настройки',
 }
 
 export default function PlaceholderPage({ tab }: { tab: LocationTab }) {

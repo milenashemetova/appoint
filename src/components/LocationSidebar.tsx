@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import {
-  Plus, ChevronDown, ChevronRight, Settings,
-  ClipboardList, Calendar, LayoutList, Users, Tag,
-  Building2, FileText, Info,
+  Plus, ChevronDown, ChevronRight,
+  ClipboardList, Calendar, TrendingUp, Users, Building2, LayoutList, Star, Settings,
 } from 'lucide-react'
 import { useSchedule } from '../context/ScheduleContext'
 import { COMPANIES, LOCATIONS } from '../data/locationsData'
@@ -12,20 +11,35 @@ interface NavItem { tab: LocationTab; icon: React.ElementType; label: string }
 const NAV_ITEMS: NavItem[] = [
   { tab: 'requests',    icon: ClipboardList, label: 'Заявки' },
   { tab: 'schedule',    icon: Calendar,      label: 'Расписание' },
-  { tab: 'services',    icon: LayoutList,    label: 'Вид работ' },
+  { tab: 'finances',    icon: TrendingUp,    label: 'Финансы' },
   { tab: 'specialists', icon: Users,         label: 'Специалисты' },
-  { tab: 'events',      icon: Tag,           label: 'Услуги и события' },
   { tab: 'spaces',      icon: Building2,     label: 'Пространства' },
-  { tab: 'content',     icon: FileText,      label: 'Контент' },
-  { tab: 'info',        icon: Info,          label: 'Основная информация' },
+  { tab: 'services',    icon: LayoutList,    label: 'Виды работ' },
+  { tab: 'reviews',     icon: Star,          label: 'Отзывы' },
+  { tab: 'settings',    icon: Settings,      label: 'Настройки' },
 ]
 
 export default function LocationSidebar() {
   const { state, dispatch } = useSchedule()
-  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set(COMPANIES.map(c => c.id)))
 
-  const toggleCompany = (id: string) =>
-    setExpandedCompanies(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+  // By default expand the active location
+  const [expandedLocations, setExpandedLocations] = useState<Set<string>>(
+    new Set([state.currentLocationId])
+  )
+
+  const toggleLocation = (id: string) =>
+    setExpandedLocations(prev => {
+      const s = new Set(prev)
+      s.has(id) ? s.delete(id) : s.add(id)
+      return s
+    })
+
+  const navigate = (locationId: string, tab: LocationTab) => {
+    dispatch({ type: 'SET_LOCATION', payload: locationId })
+    dispatch({ type: 'SET_LOCATION_TAB', payload: tab })
+    // Expand this location if not already
+    setExpandedLocations(prev => new Set([...prev, locationId]))
+  }
 
   const grouped = COMPANIES.map(c => ({
     ...c,
@@ -37,7 +51,7 @@ export default function LocationSidebar() {
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3 flex-shrink-0">
-        <span className="text-sm font-semibold text-gray-900">Мои локации</span>
+        <span className="text-sm font-semibold text-gray-900">Reshape</span>
         <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 transition-colors">
           <Plus size={15} />
         </button>
@@ -46,77 +60,71 @@ export default function LocationSidebar() {
       <div className="border-t border-gray-100" />
 
       {/* Location tree */}
-      <div className="flex-shrink-0 py-2">
-        {grouped.map(company => {
-          const expanded = expandedCompanies.has(company.id)
-          return (
-            <div key={company.id}>
-              {/* Company row */}
-              <button
-                onClick={() => toggleCompany(company.id)}
-                className="w-full flex items-center gap-1.5 px-3 py-1.5 hover:bg-gray-50 transition-colors text-left"
-              >
-                {expanded
-                  ? <ChevronDown size={13} className="text-gray-400 flex-shrink-0" />
-                  : <ChevronRight size={13} className="text-gray-400 flex-shrink-0" />
-                }
-                <span className="text-xs font-medium text-gray-500 truncate">{company.name}</span>
-              </button>
+      <div className="flex-1 overflow-y-auto py-2">
+        {grouped.map(company => (
+          <div key={company.id} className="mb-1">
+            {/* Company label */}
+            <div className="px-4 py-1.5">
+              <span className="text-xs font-bold text-gray-700 tracking-wide">{company.name}</span>
+            </div>
 
-              {/* Locations */}
-              {expanded && company.locations.map(loc => {
-                const isActive = loc.id === state.currentLocationId
-                return (
+            {/* Locations */}
+            {company.locations.map(loc => {
+              const isExpanded = expandedLocations.has(loc.id)
+              const isCurrentLoc = loc.id === state.currentLocationId
+
+              return (
+                <div key={loc.id}>
+                  {/* Location row */}
                   <button
-                    key={loc.id}
-                    onClick={() => dispatch({ type: 'SET_LOCATION', payload: loc.id })}
-                    className={`w-full flex items-center gap-2 pl-6 pr-2 py-1.5 transition-colors group text-left ${isActive ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
+                    onClick={() => toggleLocation(loc.id)}
+                    className={`w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 transition-colors text-left ${isCurrentLoc ? 'bg-gray-50' : ''}`}
                   >
-                    {/* Mini avatar */}
+                    {isExpanded
+                      ? <ChevronDown size={12} className="text-gray-400 flex-shrink-0" />
+                      : <ChevronRight size={12} className="text-gray-400 flex-shrink-0" />
+                    }
+                    {/* Avatar */}
                     <div
-                      className="w-6 h-6 rounded-md flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0"
+                      className="w-6 h-6 rounded-md flex items-center justify-center text-white text-[8px] font-bold flex-shrink-0"
                       style={{ backgroundColor: loc.color }}
                     >
                       {loc.initial}
                     </div>
-                    <span className={`text-xs flex-1 truncate ${isActive ? 'font-semibold text-gray-800' : 'text-gray-600 group-hover:text-gray-800'}`}>
+                    <span className={`text-xs flex-1 truncate leading-tight ${isCurrentLoc ? 'font-semibold text-gray-800' : 'text-gray-600'}`}>
                       {loc.name}
                     </span>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 text-gray-400 transition-all"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <Settings size={11} />
-                      </button>
-                      {loc.isActive && <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />}
-                    </div>
+                    {loc.isActive && <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />}
                   </button>
-                )
-              })}
-            </div>
-          )
-        })}
+
+                  {/* Nav items (shown when expanded) */}
+                  {isExpanded && (
+                    <div className="pb-1">
+                      {NAV_ITEMS.map(({ tab, icon: Icon, label }) => {
+                        const isActive = isCurrentLoc && state.locationTab === tab && (state.appPage !== 'schedule' || tab === 'schedule')
+                        return (
+                          <button
+                            key={tab}
+                            onClick={() => navigate(loc.id, tab)}
+                            className={`w-full flex items-center gap-2 pl-10 pr-3 py-1.5 text-left transition-colors ${
+                              isActive
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                            }`}
+                          >
+                            <Icon size={13} className={isActive ? 'text-blue-600' : 'text-gray-400'} />
+                            <span className={`text-xs ${isActive ? 'font-medium' : ''}`}>{label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ))}
       </div>
-
-      <div className="border-t border-gray-100" />
-
-      {/* Nav for active location */}
-      <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.map(({ tab, icon: Icon, label }) => {
-          const active = state.locationTab === tab
-          return (
-            <button
-              key={tab}
-              onClick={() => dispatch({ type: 'SET_LOCATION_TAB', payload: tab })}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-colors text-left ${active ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}
-            >
-              <Icon size={15} className={active ? 'text-gray-700' : 'text-gray-400'} />
-              {label}
-            </button>
-          )
-        })}
-      </nav>
     </div>
   )
 }

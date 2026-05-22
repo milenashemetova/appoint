@@ -134,15 +134,7 @@ export default function DayView() {
                 <UnavailableMask wh={col.workingHours} />
 
                 {laid.map(({ slot, col: c, numCols, extraCount }) => (
-                  <SlotCard
-                    key={slot.id}
-                    slot={slot}
-                    col={c}
-                    numCols={numCols}
-                    extraCount={extraCount}
-                    compact={false}
-                    onClick={() => dispatch({ type: 'SELECT_SLOT', payload: slot })}
-                  />
+                  <SlotCard key={slot.id} slot={slot} col={c} numCols={numCols} extraCount={extraCount} compact={false} />
                 ))}
               </div>
             )
