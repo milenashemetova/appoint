@@ -70,10 +70,7 @@ export default function WeekView() {
         startTime.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0)
         const endTime = new Date(day)
         endTime.setHours(Math.floor(endMin / 60), endMin % 60, 0, 0)
-        dispatch({
-          type: 'SET_CREATE_MENU',
-          payload: { x: me.clientX, y: me.clientY, startTime, endTime, columnKey: '' },
-        })
+        dispatch({ type: 'SET_CREATE_MODAL', payload: { startTime, endTime, columnKey: '' } })
       }
       setDrag(null)
       window.removeEventListener('mousemove', onMove)

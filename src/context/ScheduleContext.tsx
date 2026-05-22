@@ -1,10 +1,17 @@
 import { createContext, useContext, useReducer, type ReactNode } from 'react'
-import type { AppPage, LocationTab, ViewMode, DayToggle, Slot, DragState, CreateMenuState } from '../types'
+import type { AppPage, LocationTab, ViewMode, DayToggle, Slot, DragState } from '../types'
 import { SPECIALISTS, SPACES, SLOTS } from '../data/mockData'
+
+export interface CreateModalState {
+  startTime: Date
+  endTime: Date
+  columnKey: string
+}
 
 interface State {
   appPage: AppPage
   locationTab: LocationTab
+  currentLocationId: string
   viewMode: ViewMode
   selectedDate: Date
   dayToggle: DayToggle
@@ -13,12 +20,13 @@ interface State {
   slots: Slot[]
   selectedSlot: Slot | null
   dragState: DragState | null
-  createMenuState: CreateMenuState | null
+  createModalState: CreateModalState | null
 }
 
 type Action =
   | { type: 'SET_APP_PAGE'; payload: AppPage }
   | { type: 'SET_LOCATION_TAB'; payload: LocationTab }
+  | { type: 'SET_LOCATION'; payload: string }
   | { type: 'SET_VIEW'; payload: ViewMode }
   | { type: 'SET_DATE'; payload: Date }
   | { type: 'SET_DAY_TOGGLE'; payload: DayToggle }
@@ -26,7 +34,7 @@ type Action =
   | { type: 'TOGGLE_SPACE'; payload: string }
   | { type: 'SELECT_SLOT'; payload: Slot | null }
   | { type: 'SET_DRAG'; payload: DragState | null }
-  | { type: 'SET_CREATE_MENU'; payload: CreateMenuState | null }
+  | { type: 'SET_CREATE_MODAL'; payload: CreateModalState | null }
   | { type: 'ADD_SLOT'; payload: Slot }
   | { type: 'UPDATE_SLOT'; payload: Slot }
   | { type: 'DELETE_SLOT'; payload: string }
@@ -34,6 +42,7 @@ type Action =
 const initialState: State = {
   appPage: 'location',
   locationTab: 'services',
+  currentLocationId: 'reshape',
   viewMode: 'week',
   selectedDate: new Date(2026, 4, 22),
   dayToggle: 'specialists',
@@ -42,7 +51,7 @@ const initialState: State = {
   slots: SLOTS,
   selectedSlot: null,
   dragState: null,
-  createMenuState: null,
+  createModalState: null,
 }
 
 function reducer(state: State, action: Action): State {
@@ -52,6 +61,7 @@ function reducer(state: State, action: Action): State {
       const tab = action.payload
       return { ...state, locationTab: tab, appPage: tab === 'schedule' ? 'schedule' : 'location' }
     }
+    case 'SET_LOCATION': return { ...state, currentLocationId: action.payload }
     case 'SET_VIEW': return { ...state, viewMode: action.payload }
     case 'SET_DATE': return { ...state, selectedDate: action.payload }
     case 'SET_DAY_TOGGLE': return { ...state, dayToggle: action.payload }
@@ -65,7 +75,7 @@ function reducer(state: State, action: Action): State {
     }
     case 'SELECT_SLOT': return { ...state, selectedSlot: action.payload }
     case 'SET_DRAG': return { ...state, dragState: action.payload }
-    case 'SET_CREATE_MENU': return { ...state, createMenuState: action.payload }
+    case 'SET_CREATE_MODAL': return { ...state, createModalState: action.payload }
     case 'ADD_SLOT': return { ...state, slots: [...state.slots, action.payload] }
     case 'UPDATE_SLOT': return { ...state, slots: state.slots.map(s => s.id === action.payload.id ? action.payload : s) }
     case 'DELETE_SLOT': return { ...state, slots: state.slots.filter(s => s.id !== action.payload), selectedSlot: null }

@@ -32,7 +32,7 @@ export default function CreateTypeMenu({ state: menuState, onClose }: Props) {
         booked: 0,
       },
     })
-    dispatch({ type: 'SET_CREATE_MENU', payload: null })
+    dispatch({ type: 'SET_CREATE_MODAL', payload: null })
     onClose()
   }
 

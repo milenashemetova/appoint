@@ -4,8 +4,7 @@ import { useSchedule } from '../../context/ScheduleContext'
 import { MONTHS_RU, addDays, addWeeks } from '../../utils/dateUtils'
 import WeekView from './WeekView'
 import DayView from './DayView'
-import SlotDetailModal from '../Modals/SlotDetailModal'
-import CreateTypeMenu from '../Modals/CreateTypeMenu'
+import SlotModal from '../Modals/SlotModal'
 
 export default function ScheduleArea() {
   const { state, dispatch } = useSchedule()
@@ -105,7 +104,12 @@ export default function ScheduleArea() {
             <div className="flex rounded-lg overflow-hidden border border-blue-500">
               <button
                 className="px-4 py-1.5 bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors"
-                onClick={() => {}}
+                onClick={() => {
+                  const now = state.selectedDate
+                  const start = new Date(now); start.setHours(9, 0, 0, 0)
+                  const end = new Date(now); end.setHours(10, 0, 0, 0)
+                  dispatch({ type: 'SET_CREATE_MODAL', payload: { startTime: start, endTime: end, columnKey: '' } })
+                }}
               >
                 Создать
               </button>
@@ -135,18 +139,7 @@ export default function ScheduleArea() {
       </div>
 
       {/* Modals */}
-      {state.selectedSlot && (
-        <SlotDetailModal
-          slot={state.selectedSlot}
-          onClose={() => dispatch({ type: 'SELECT_SLOT', payload: null })}
-        />
-      )}
-      {state.createMenuState && (
-        <CreateTypeMenu
-          state={state.createMenuState}
-          onClose={() => dispatch({ type: 'SET_CREATE_MENU', payload: null })}
-        />
-      )}
+      <SlotModal />
     </div>
   )
 }

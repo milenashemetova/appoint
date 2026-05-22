@@ -83,7 +83,7 @@ export default function DayView() {
       if (en - s >= 15) {
         const startTime = new Date(day); startTime.setHours(Math.floor(s / 60), s % 60, 0, 0)
         const endTime = new Date(day); endTime.setHours(Math.floor(en / 60), en % 60, 0, 0)
-        dispatch({ type: 'SET_CREATE_MENU', payload: { x: me.clientX, y: me.clientY, startTime, endTime, columnKey: colKey } })
+        dispatch({ type: 'SET_CREATE_MODAL', payload: { startTime, endTime, columnKey: colKey } })
       }
       window.removeEventListener('mouseup', onUp)
     }
