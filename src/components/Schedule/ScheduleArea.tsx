@@ -30,8 +30,13 @@ export default function ScheduleArea() {
     <div className="flex-1 flex flex-col min-w-0 bg-white">
       {/* Breadcrumb */}
       <div className="flex items-center gap-1 px-5 pt-4 pb-1">
-        <ChevronLeft size={15} className="text-gray-400" />
-        <span className="text-sm text-gray-500 hover:text-gray-800 cursor-pointer">Локация «Reshape»</span>
+        <button
+          onClick={() => dispatch({ type: 'SET_APP_PAGE', payload: 'location' })}
+          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+        >
+          <ChevronLeft size={15} />
+          Локация «Reshape»
+        </button>
       </div>
 
       {/* Control bar */}
