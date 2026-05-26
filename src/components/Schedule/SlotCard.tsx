@@ -28,7 +28,10 @@ export default function SlotCard({ slot, col, numCols, extraCount, compact = fal
   const isFull = slot.status === 'full'
   const isFree = slot.type === 'free'
 
-  const displayTitle = extraCount ? `${slot.title} и ещё ${extraCount}` : slot.title
+  const displayTitle = isFree
+    ? extraCount ? `${slot.title} +${extraCount}` : slot.title
+    : extraCount ? `${slot.title} и ещё ${extraCount}` : slot.title
+
   const cardH = Math.max(height - 2, 18)
   const showTime = !compact && cardH >= 42
   const showMeta = cardH >= 30
@@ -39,6 +42,8 @@ export default function SlotCard({ slot, col, numCols, extraCount, compact = fal
     dispatch({ type: 'SELECT_SLOT', payload: slot })
     dispatch({ type: 'SET_SLOT_RECT', payload: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } })
   }
+
+  const borderRadius = isFree ? '8px' : '4px'
 
   return (
     <div
@@ -54,7 +59,7 @@ export default function SlotCard({ slot, col, numCols, extraCount, compact = fal
         borderColor: style.borderColor,
         borderWidth: '1px',
         borderStyle: style.dashed ? 'dashed' : 'solid',
-        borderRadius: '4px',
+        borderRadius,
       }}
       className="overflow-hidden cursor-pointer select-none hover:brightness-95 transition-all flex shadow-sm"
     >
@@ -64,47 +69,76 @@ export default function SlotCard({ slot, col, numCols, extraCount, compact = fal
         style={{ backgroundColor: style.barColor }}
       />
 
-      {/* Card content */}
-      <div className="flex-1 min-w-0 px-1.5 py-0.5 flex flex-col justify-between overflow-hidden">
-        {/* Title */}
-        <div
-          className="font-semibold text-[11px] leading-tight truncate"
-          style={{ color: style.textColor, opacity: isPast ? 0.45 : 1 }}
-        >
-          {displayTitle}
-        </div>
-
-        {showTime && (
+      {/* ── Free / service card layout ── */}
+      {isFree ? (
+        <div className="flex-1 min-w-0 px-2 py-1.5 relative overflow-hidden">
+          {/* User icon — top right */}
           <div
-            className="text-[10px] leading-tight truncate mt-0.5"
+            className="absolute top-1.5 right-1.5"
             style={{ color: style.subTextColor, opacity: isPast ? 0.45 : 1 }}
           >
-            {fmtTime(slot.start)}–{fmtTime(slot.end)}
+            <User size={13} />
           </div>
-        )}
 
-        {showMeta && (
-          <div className="flex items-center justify-between mt-auto">
+          {/* Title */}
+          <div
+            className="font-semibold text-[12px] leading-snug truncate pr-5"
+            style={{ color: style.textColor, opacity: isPast ? 0.45 : 1 }}
+          >
+            {displayTitle}
+          </div>
+
+          {/* Time */}
+          {showTime && (
             <div
-              className="flex items-center gap-0.5"
+              className="text-[11px] leading-tight mt-0.5 truncate"
               style={{ color: style.subTextColor, opacity: isPast ? 0.45 : 1 }}
             >
-              {isFree ? (
-                <User size={9} />
-              ) : slot.capacity != null ? (
-                <span className={`text-[10px] ${isFull ? 'font-bold' : ''}`}>
-                  {slot.booked ?? 0}/{slot.capacity}
-                </span>
-              ) : null}
+              {fmtTime(slot.start)}-{fmtTime(slot.end)}
             </div>
-            {isNew && !isPast && (
-              <span className="text-[9px] bg-blue-500 text-white rounded px-1 py-px font-medium leading-none flex-shrink-0">
-                Новая
-              </span>
-            )}
+          )}
+        </div>
+      ) : (
+        /* ── Fixed / event card layout ── */
+        <div className="flex-1 min-w-0 px-1.5 py-0.5 flex flex-col justify-between overflow-hidden">
+          {/* Title */}
+          <div
+            className="font-semibold text-[11px] leading-tight truncate"
+            style={{ color: style.textColor, opacity: isPast ? 0.45 : 1 }}
+          >
+            {displayTitle}
           </div>
-        )}
-      </div>
+
+          {showTime && (
+            <div
+              className="text-[10px] leading-tight truncate mt-0.5"
+              style={{ color: style.subTextColor, opacity: isPast ? 0.45 : 1 }}
+            >
+              {fmtTime(slot.start)}–{fmtTime(slot.end)}
+            </div>
+          )}
+
+          {showMeta && (
+            <div className="flex items-center justify-between mt-auto">
+              <div
+                className="flex items-center gap-0.5"
+                style={{ color: style.subTextColor, opacity: isPast ? 0.45 : 1 }}
+              >
+                {slot.capacity != null && (
+                  <span className={`text-[10px] ${isFull ? 'font-bold' : ''}`}>
+                    {slot.booked ?? 0}/{slot.capacity}
+                  </span>
+                )}
+              </div>
+              {isNew && !isPast && (
+                <span className="text-[9px] bg-blue-500 text-white rounded px-1 py-px font-medium leading-none flex-shrink-0">
+                  Новая
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
