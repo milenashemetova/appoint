@@ -1,6 +1,7 @@
 import { createContext, useContext, useReducer, type ReactNode } from 'react'
-import type { LocationTab, ViewMode, DayToggle, Slot, DragState } from '../types'
+import type { LocationTab, ViewMode, DayToggle, Slot, DragState, BookingRequest } from '../types'
 import { SPECIALISTS, SPACES, SLOTS } from '../data/mockData'
+import { INITIAL_REQUESTS } from '../data/requestsData'
 
 export interface CreateModalState {
   startTime: Date
@@ -25,6 +26,7 @@ interface State {
   selectedSpecialistIds: string[]
   selectedSpaceIds: string[]
   slots: Slot[]
+  requests: BookingRequest[]
   selectedSlot: Slot | null
   selectedSlotRect: SlotRect | null
   dragState: DragState | null
@@ -46,6 +48,8 @@ type Action =
   | { type: 'ADD_SLOT'; payload: Slot }
   | { type: 'UPDATE_SLOT'; payload: Slot }
   | { type: 'DELETE_SLOT'; payload: string }
+  | { type: 'CONFIRM_REQUEST'; payload: string }
+  | { type: 'REJECT_REQUEST'; payload: string }
 
 const initialState: State = {
   locationTab: 'schedule',
@@ -56,6 +60,7 @@ const initialState: State = {
   selectedSpecialistIds: ['anna'],
   selectedSpaceIds: ['zal-a'],
   slots: SLOTS,
+  requests: INITIAL_REQUESTS,
   selectedSlot: null,
   selectedSlotRect: null,
   dragState: null,
@@ -93,6 +98,36 @@ function reducer(state: State, action: Action): State {
     }
     case 'UPDATE_SLOT': return { ...state, slots: state.slots.map(s => s.id === action.payload.id ? action.payload : s) }
     case 'DELETE_SLOT': return { ...state, slots: state.slots.filter(s => s.id !== action.payload), selectedSlot: null, selectedSlotRect: null }
+    case 'CONFIRM_REQUEST': {
+      const req = state.requests.find(r => r.id === action.payload)
+      if (!req) return state
+      const start = new Date(req.date)
+      start.setHours(req.startHour, req.startMin, 0, 0)
+      const end = new Date(start)
+      end.setMinutes(end.getMinutes() + req.durationMin)
+      const newSlot: Slot = {
+        id: `slot-${Date.now()}`,
+        title: req.serviceName,
+        type: 'free',
+        status: 'confirmed',
+        specialistId: req.specialistId,
+        start, end,
+        clientName: req.clientName,
+        clientPhone: req.clientPhone,
+        serviceType: req.serviceId,
+      }
+      const specIds = !state.selectedSpecialistIds.includes(req.specialistId)
+        ? [...state.selectedSpecialistIds, req.specialistId]
+        : state.selectedSpecialistIds
+      return {
+        ...state,
+        requests: state.requests.map(r => r.id === action.payload ? { ...r, status: 'confirmed' as const } : r),
+        slots: [...state.slots, newSlot],
+        selectedSpecialistIds: specIds,
+      }
+    }
+    case 'REJECT_REQUEST':
+      return { ...state, requests: state.requests.map(r => r.id === action.payload ? { ...r, status: 'rejected' as const } : r) }
     default: return state
   }
 }

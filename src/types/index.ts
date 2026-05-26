@@ -53,6 +53,21 @@ export interface LayoutedSlot {
   extraCount?: number
 }
 
+export interface BookingRequest {
+  id: string
+  clientName: string
+  clientPhone: string
+  serviceId: string
+  serviceName: string
+  specialistId: string
+  date: Date
+  startHour: number
+  startMin: number
+  durationMin: number
+  note?: string
+  status: 'pending' | 'confirmed' | 'rejected'
+}
+
 export interface DragState {
   isActive: boolean
   columnKey: string

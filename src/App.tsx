@@ -3,6 +3,8 @@ import GlobalSidebar from './components/GlobalSidebar'
 import LeftPanel from './components/LeftPanel/LeftPanel'
 import ScheduleArea from './components/Schedule/ScheduleArea'
 import ServicesPage from './components/Services/ServicesPage'
+import RequestsPage from './components/Requests/RequestsPage'
+import EventsPage from './components/Events/EventsPage'
 import PlaceholderPage from './components/PlaceholderPage'
 
 function AppContent() {
@@ -10,9 +12,11 @@ function AppContent() {
 
   const content = () => {
     switch (state.locationTab) {
-      case 'schedule': return <ScheduleArea />
-      case 'services': return <ServicesPage />
-      default: return <PlaceholderPage tab={state.locationTab} />
+      case 'schedule':  return <ScheduleArea />
+      case 'requests':  return <RequestsPage />
+      case 'events':    return <EventsPage />
+      case 'services':  return <ServicesPage />
+      default:          return <PlaceholderPage tab={state.locationTab} />
     }
   }
 

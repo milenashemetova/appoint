@@ -134,19 +134,31 @@ export default function WeekView() {
                 ))}
 
                 {/* Drag preview */}
-                {drag && drag.colIdx === dayIdx && (
-                  <div
-                    className="absolute left-0 right-0 bg-green-400/20 border border-green-500 rounded pointer-events-none z-20"
-                    style={{
-                      top: minutesToPx(drag.preview.startMin - gridStartMin),
-                      height: minutesToPx(drag.preview.endMin - drag.preview.startMin),
-                    }}
-                  >
-                    <div className="text-[10px] text-green-700 font-medium px-1 pt-0.5">
-                      {`${String(Math.floor(drag.preview.startMin/60)).padStart(2,'0')}:${String(drag.preview.startMin%60).padStart(2,'0')} – ${String(Math.floor(drag.preview.endMin/60)).padStart(2,'0')}:${String(drag.preview.endMin%60).padStart(2,'0')}`}
+                {drag && drag.colIdx === dayIdx && (() => {
+                  const { startMin, endMin } = drag.preview
+                  const durMin = endMin - startMin
+                  const durH = Math.floor(durMin / 60); const durM = durMin % 60
+                  const durLabel = durH === 0 ? `${durM} мин` : durM === 0 ? `${durH}ч` : `${durH}ч ${durM}мин`
+                  const fmt = (m: number) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
+                  return (
+                    <div
+                      className="absolute left-0 right-0 bg-blue-400/15 border border-blue-400 rounded pointer-events-none z-20 flex flex-col justify-between"
+                      style={{
+                        top: minutesToPx(startMin - gridStartMin),
+                        height: minutesToPx(durMin),
+                      }}
+                    >
+                      <div className="text-[10px] text-blue-700 font-medium px-1.5 pt-1">
+                        {fmt(startMin)} – {fmt(endMin)}
+                      </div>
+                      <div className="px-1.5 pb-1 flex justify-end">
+                        <span className="text-[10px] bg-blue-500 text-white rounded px-1.5 py-0.5 font-medium leading-none">
+                          {durLabel}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )
+                })()}
               </div>
             )
           })}
