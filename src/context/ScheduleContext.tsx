@@ -6,6 +6,7 @@ export interface CreateModalState {
   startTime: Date
   endTime: Date
   columnKey: string
+  slotType?: 'fixed' | 'free'
 }
 
 export interface SlotRect {

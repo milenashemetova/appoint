@@ -121,8 +121,21 @@ export default function ScheduleArea() {
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setCreateDropOpen(false)} />
                 <div className="absolute right-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-gray-100 py-1 w-40">
-                  <button className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Услуга</button>
-                  <button className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Событие</button>
+                  {(['free', 'fixed'] as const).map(slotType => (
+                    <button
+                      key={slotType}
+                      onClick={() => {
+                        setCreateDropOpen(false)
+                        const now = state.selectedDate
+                        const start = new Date(now); start.setHours(9, 0, 0, 0)
+                        const end = new Date(now); end.setHours(10, 0, 0, 0)
+                        dispatch({ type: 'SET_CREATE_MODAL', payload: { startTime: start, endTime: end, columnKey: '', slotType } })
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      {slotType === 'free' ? 'Услуга' : 'Событие'}
+                    </button>
+                  ))}
                 </div>
               </>
             )}
