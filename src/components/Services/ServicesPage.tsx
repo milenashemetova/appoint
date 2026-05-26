@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronRight, ChevronDown, Search, GripVertical, MoreHorizontal, X, ChevronDown as ChevronDownSm } from 'lucide-react'
+import { ChevronRight, ChevronDown, Search, GripVertical, MoreHorizontal, X } from 'lucide-react'
 import { SERVICE_GROUPS } from '../../data/servicesData'
 import { SPECIALISTS } from '../../data/mockData'
 
@@ -54,12 +54,7 @@ export default function ServicesPage() {
   })).filter(g => g.services.length > 0)
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-white">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1 px-6 pt-4 pb-1">
-        <ChevronDownSm size={15} className="text-gray-400 rotate-90" />
-        <span className="text-sm text-gray-500 hover:text-gray-800 cursor-pointer">Локация «Reshape»</span>
-      </div>
+    <div className="flex-1 flex flex-col min-w-0 bg-white rounded-xl border border-slate-200 overflow-hidden">
 
       {/* Page header */}
       <div className="flex items-center justify-between px-6 py-3">

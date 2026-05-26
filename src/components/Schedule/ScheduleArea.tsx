@@ -34,18 +34,7 @@ export default function ScheduleArea() {
   const viewLabels: Record<string, string> = { week: 'Неделя', day: 'День' }
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-white">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1 px-5 pt-4 pb-1">
-        <button
-          onClick={() => dispatch({ type: 'SET_APP_PAGE', payload: 'location' })}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 transition-colors"
-        >
-          <ChevronLeft size={15} />
-          Локация «Reshape»
-        </button>
-      </div>
-
+    <div className="flex-1 flex flex-col min-w-0 bg-white rounded-xl border border-slate-200 overflow-hidden">
       {/* Control bar */}
       <div className="flex items-center justify-between px-5 py-2 flex-shrink-0">
         <div className="flex items-center gap-3">

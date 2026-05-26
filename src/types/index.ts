@@ -1,5 +1,4 @@
-export type AppPage = 'location' | 'schedule'
-export type LocationTab = 'requests' | 'schedule' | 'finances' | 'specialists' | 'spaces' | 'services' | 'reviews' | 'settings'
+export type LocationTab = 'schedule' | 'requests' | 'events' | 'services' | 'specialists' | 'spaces' | 'content' | 'info'
 export type ViewMode = 'week' | 'day'
 export type DayToggle = 'specialists' | 'spaces'
 export type SlotType = 'fixed' | 'free'

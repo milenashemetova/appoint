@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, type ReactNode } from 'react'
-import type { AppPage, LocationTab, ViewMode, DayToggle, Slot, DragState } from '../types'
+import type { LocationTab, ViewMode, DayToggle, Slot, DragState } from '../types'
 import { SPECIALISTS, SPACES, SLOTS } from '../data/mockData'
 
 export interface CreateModalState {
@@ -16,7 +16,6 @@ export interface SlotRect {
 }
 
 interface State {
-  appPage: AppPage
   locationTab: LocationTab
   currentLocationId: string
   viewMode: ViewMode
@@ -32,7 +31,6 @@ interface State {
 }
 
 type Action =
-  | { type: 'SET_APP_PAGE'; payload: AppPage }
   | { type: 'SET_LOCATION_TAB'; payload: LocationTab }
   | { type: 'SET_LOCATION'; payload: string }
   | { type: 'SET_VIEW'; payload: ViewMode }
@@ -49,8 +47,7 @@ type Action =
   | { type: 'DELETE_SLOT'; payload: string }
 
 const initialState: State = {
-  appPage: 'location',
-  locationTab: 'services',
+  locationTab: 'schedule',
   currentLocationId: 'reshape',
   viewMode: 'week',
   selectedDate: new Date(2026, 4, 22),
@@ -66,11 +63,7 @@ const initialState: State = {
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
-    case 'SET_APP_PAGE': return { ...state, appPage: action.payload }
-    case 'SET_LOCATION_TAB': {
-      const tab = action.payload
-      return { ...state, locationTab: tab, appPage: tab === 'schedule' ? 'schedule' : 'location' }
-    }
+    case 'SET_LOCATION_TAB': return { ...state, locationTab: action.payload }
     case 'SET_LOCATION': return { ...state, currentLocationId: action.payload }
     case 'SET_VIEW': return { ...state, viewMode: action.payload }
     case 'SET_DATE': return { ...state, selectedDate: action.payload }

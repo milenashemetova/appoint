@@ -2,34 +2,25 @@ import { ScheduleProvider, useSchedule } from './context/ScheduleContext'
 import GlobalSidebar from './components/GlobalSidebar'
 import LeftPanel from './components/LeftPanel/LeftPanel'
 import ScheduleArea from './components/Schedule/ScheduleArea'
-import LocationSidebar from './components/LocationSidebar'
 import ServicesPage from './components/Services/ServicesPage'
 import PlaceholderPage from './components/PlaceholderPage'
 
 function AppContent() {
   const { state } = useSchedule()
 
-  const locationContent = () => {
+  const content = () => {
     switch (state.locationTab) {
+      case 'schedule': return <ScheduleArea />
       case 'services': return <ServicesPage />
       default: return <PlaceholderPage tab={state.locationTab} />
     }
   }
 
   return (
-    <div className="flex w-full h-full bg-white overflow-hidden">
+    <div className="flex w-full h-full bg-slate-100 overflow-hidden gap-2 p-2">
       <GlobalSidebar />
-      {state.appPage === 'schedule' ? (
-        <>
-          <LeftPanel />
-          <ScheduleArea />
-        </>
-      ) : (
-        <>
-          <LocationSidebar />
-          {locationContent()}
-        </>
-      )}
+      <LeftPanel />
+      {content()}
     </div>
   )
 }
