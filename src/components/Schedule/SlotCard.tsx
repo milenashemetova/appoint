@@ -4,7 +4,7 @@ import { useSchedule } from '../../context/ScheduleContext'
 import { getSlotStyle, slotTop, slotHeight } from '../../utils/slotUtils'
 import { fmtTime } from '../../utils/dateUtils'
 
-const CASCADE_OFFSET = 10 // px offset per overlap level
+const CASCADE_OFFSET = 10
 
 interface Props {
   slot: Slot
@@ -24,13 +24,14 @@ export default function SlotCard({ slot, col, numCols, extraCount, compact = fal
   const isOverlapping = numCols > 1
   const leftPx = isOverlapping ? col * CASCADE_OFFSET : 2
 
-  const isFree = slot.type === 'free'
   const isNew = slot.status === 'new'
-  const isFixed = slot.type === 'fixed'
   const isFull = slot.status === 'full'
-  const isStopped = slot.status === 'stopped'
+  const isFree = slot.type === 'free'
 
   const displayTitle = extraCount ? `${slot.title} и ещё ${extraCount}` : slot.title
+  const cardH = Math.max(height - 2, 18)
+  const showTime = !compact && cardH >= 42
+  const showMeta = cardH >= 30
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation()
@@ -45,47 +46,63 @@ export default function SlotCard({ slot, col, numCols, extraCount, compact = fal
       style={{
         position: 'absolute',
         top: `${top}px`,
-        height: `${Math.max(height - 2, 18)}px`,
+        height: `${cardH}px`,
         left: `${leftPx}px`,
         right: '2px',
         zIndex: col + 1,
-        opacity: isPast ? 0.4 : 1,
+        backgroundColor: style.bgColor,
+        borderColor: style.borderColor,
+        borderWidth: '1px',
+        borderStyle: style.dashed ? 'dashed' : 'solid',
+        borderRadius: '4px',
       }}
-      className={`
-        rounded overflow-hidden cursor-pointer select-none
-        border-l-4 ${style.border}
-        ${style.bg}
-        ${isStopped ? 'border border-dashed border-gray-300' : ''}
-        hover:brightness-95 transition-all
-        flex flex-col justify-between p-1
-        text-xs leading-tight
-        shadow-sm
-      `}
+      className="overflow-hidden cursor-pointer select-none hover:brightness-95 transition-all flex shadow-sm"
     >
-      <div className="overflow-hidden">
-        <div className={`font-medium truncate ${style.text} ${isFull ? 'font-bold' : ''}`}>
+      {/* 4px left color bar */}
+      <div
+        className="w-1 flex-shrink-0 self-stretch"
+        style={{ backgroundColor: style.barColor }}
+      />
+
+      {/* Card content */}
+      <div className="flex-1 min-w-0 px-1.5 py-0.5 flex flex-col justify-between overflow-hidden">
+        {/* Title */}
+        <div
+          className="font-semibold text-[11px] leading-tight truncate"
+          style={{ color: style.textColor, opacity: isPast ? 0.45 : 1 }}
+        >
           {displayTitle}
         </div>
-        {!compact && height >= 50 && (
-          <div className={`text-[10px] mt-0.5 ${style.subText}`}>
+
+        {showTime && (
+          <div
+            className="text-[10px] leading-tight truncate mt-0.5"
+            style={{ color: style.subTextColor, opacity: isPast ? 0.45 : 1 }}
+          >
             {fmtTime(slot.start)}–{fmtTime(slot.end)}
           </div>
         )}
-      </div>
 
-      <div className="flex items-center justify-between">
-        <div className={`flex items-center gap-0.5 ${style.subText}`}>
-          {isFree && <User size={10} />}
-          {isFixed && slot.capacity != null && (
-            <span className={`text-[10px] ${isFull ? 'font-bold' : ''}`}>
-              {slot.booked}/{slot.capacity}
-            </span>
-          )}
-        </div>
-        {isNew && (
-          <span className="text-[9px] bg-blue-500 text-white rounded px-1 py-px font-medium leading-none">
-            Новая
-          </span>
+        {showMeta && (
+          <div className="flex items-center justify-between mt-auto">
+            <div
+              className="flex items-center gap-0.5"
+              style={{ color: style.subTextColor, opacity: isPast ? 0.45 : 1 }}
+            >
+              {isFree ? (
+                <User size={9} />
+              ) : slot.capacity != null ? (
+                <span className={`text-[10px] ${isFull ? 'font-bold' : ''}`}>
+                  {slot.booked ?? 0}/{slot.capacity}
+                </span>
+              ) : null}
+            </div>
+            {isNew && !isPast && (
+              <span className="text-[9px] bg-blue-500 text-white rounded px-1 py-px font-medium leading-none flex-shrink-0">
+                Новая
+              </span>
+            )}
+          </div>
         )}
       </div>
     </div>

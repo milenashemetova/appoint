@@ -52,6 +52,12 @@ export default function WeekView() {
     if (!rect) return
     const y = e.clientY - rect.top
     const startMin = getMinFromY(y)
+
+    // Prevent drag in the past
+    const tentativeStart = new Date(days[dayIdx])
+    tentativeStart.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0)
+    if (tentativeStart < new Date()) return
+
     setDrag({ colIdx: dayIdx, preview: { startMin, endMin: startMin + 60 } })
 
     const onMove = (me: MouseEvent) => {

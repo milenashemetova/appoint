@@ -76,6 +76,11 @@ export default function DayView() {
     if (!rect) return
     const startMin = getMinFromY(e.clientY - rect.top)
 
+    // Prevent drag in the past
+    const tentativeStart = new Date(day)
+    tentativeStart.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0)
+    if (tentativeStart < new Date()) return
+
     const onUp = (me: MouseEvent) => {
       const endMin = getMinFromY(me.clientY - rect.top)
       const s = Math.min(startMin, endMin)

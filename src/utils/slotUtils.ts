@@ -79,38 +79,79 @@ export function collapseDayViewSlots(layouted: LayoutedSlot[]): LayoutedSlot[] {
 
 // ─── Visual style helpers ──────────────────────────────────────────────────
 
-interface SlotStyle {
-  bg: string
-  border: string
-  text: string
-  subText: string
+export interface SlotStyle {
+  bgColor: string
+  barColor: string
+  borderColor: string
+  textColor: string
+  subTextColor: string
   dashed: boolean
-  opacity: boolean
 }
 
-const isPast = (slot: Slot) => slot.end < new Date()
-
 export function getSlotStyle(slot: Slot): SlotStyle {
-  const past = isPast(slot)
-  const base: Omit<SlotStyle, 'opacity' | 'dashed'> = (() => {
-    const s: SlotStatus = slot.status
-    if (s === 'confirmed')
-      return { bg: 'bg-blue-50', border: 'border-l-blue-400', text: 'text-blue-900', subText: 'text-blue-500' }
-    if (s === 'new')
-      return { bg: 'bg-blue-100', border: 'border-l-blue-500', text: 'text-blue-900', subText: 'text-blue-600' }
-    if (s === 'waiting')
-      return { bg: 'bg-slate-100', border: 'border-l-slate-400', text: 'text-slate-700', subText: 'text-slate-500' }
-    if (s === 'has-bookings')
-      return { bg: 'bg-green-50', border: 'border-l-green-500', text: 'text-green-900', subText: 'text-green-600' }
-    if (s === 'full')
-      return { bg: 'bg-green-100', border: 'border-l-green-600', text: 'text-green-900', subText: 'text-green-700' }
-    if (s === 'no-bookings')
-      return { bg: 'bg-emerald-50', border: 'border-l-emerald-300', text: 'text-emerald-700', subText: 'text-emerald-500' }
-    if (s === 'stopped')
-      return { bg: 'bg-gray-50', border: 'border-l-gray-300', text: 'text-gray-500', subText: 'text-gray-400' }
-    return { bg: 'bg-gray-50', border: 'border-l-gray-300', text: 'text-gray-600', subText: 'text-gray-400' }
-  })()
-  return { ...base, dashed: slot.status === 'stopped', opacity: past }
+  const { type, status } = slot
+
+  if (status === 'stopped') {
+    return {
+      bgColor: 'rgba(248,250,252,0.95)',
+      barColor: '#94a3b8',
+      borderColor: '#cbd5e1',
+      textColor: '#64748b',
+      subTextColor: '#94a3b8',
+      dashed: true,
+    }
+  }
+
+  if (type === 'free') {
+    if (status === 'confirmed') {
+      return {
+        bgColor: '#16a34a',
+        barColor: '#15803d',
+        borderColor: '#15803d',
+        textColor: '#ffffff',
+        subTextColor: 'rgba(255,255,255,0.75)',
+        dashed: false,
+      }
+    }
+    return {
+      bgColor: 'rgba(240,253,244,0.95)',
+      barColor: '#16a34a',
+      borderColor: '#bbf7d0',
+      textColor: '#14532d',
+      subTextColor: '#166534',
+      dashed: false,
+    }
+  }
+
+  // type === 'fixed' → blue event theme
+  if (status === 'confirmed') {
+    return {
+      bgColor: '#2563eb',
+      barColor: '#1d4ed8',
+      borderColor: '#1d4ed8',
+      textColor: '#ffffff',
+      subTextColor: 'rgba(255,255,255,0.75)',
+      dashed: false,
+    }
+  }
+  if (status === 'has-bookings' || status === 'full') {
+    return {
+      bgColor: 'rgba(239,246,255,0.95)',
+      barColor: '#2563eb',
+      borderColor: '#bfdbfe',
+      textColor: '#1e3a8a',
+      subTextColor: '#3b82f6',
+      dashed: false,
+    }
+  }
+  return {
+    bgColor: 'rgba(241,245,249,0.95)',
+    barColor: '#2563eb',
+    borderColor: '#bfdbfe',
+    textColor: '#1e40af',
+    subTextColor: '#3b82f6',
+    dashed: false,
+  }
 }
 
 export function snapToGrid(minutes: number, step = 15): number {
