@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react'
 import { useState } from 'react'
 import { useSchedule } from '../../context/ScheduleContext'
 import { MONTHS_RU, addDays, addWeeks } from '../../utils/dateUtils'
@@ -6,9 +6,91 @@ import WeekView from './WeekView'
 import DayView from './DayView'
 import SlotModal from '../Modals/SlotModal'
 import SlotPopover from '../Modals/SlotPopover'
+import CreateSlotDrawer from '../Modals/CreateSlotDrawer'
+
+// ── Multi-select dropdown ────────────────────────────────────────────────────
+
+interface MultiSelectItem { id: string; name: string; color?: string; initials?: string }
+
+function MultiSelectDropdown({
+  label,
+  items,
+  selectedIds,
+  onToggle,
+  onSelectAll,
+}: {
+  label: string
+  items: MultiSelectItem[]
+  selectedIds: string[]
+  onToggle: (id: string) => void
+  onSelectAll: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const allSelected = selectedIds.length === items.length
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors min-w-[140px] justify-between"
+      >
+        <span className="truncate">
+          {allSelected ? label : selectedIds.length === 0 ? 'Не выбрано' : `Выбрано: ${selectedIds.length}`}
+        </span>
+        <ChevronDown size={13} className={`text-gray-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-gray-100 py-1 min-w-[200px]">
+            {/* Select all */}
+            <button
+              onClick={onSelectAll}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${allSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
+                {allSelected && <Check size={10} className="text-white" />}
+              </span>
+              <span className="font-medium">{label}</span>
+            </button>
+
+            <div className="h-px bg-gray-100 my-1" />
+
+            {items.map(item => {
+              const checked = selectedIds.includes(item.id)
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onToggle(item.id)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${checked ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
+                    {checked && <Check size={10} className="text-white" />}
+                  </span>
+                  {item.color && item.initials && (
+                    <span
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-white flex-shrink-0"
+                      style={{ backgroundColor: item.color, fontSize: '8px', fontWeight: 700 }}
+                    >
+                      {item.initials[0]}
+                    </span>
+                  )}
+                  <span className="truncate">{item.name}</span>
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Main component ───────────────────────────────────────────────────────────
 
 export default function ScheduleArea() {
-  const { state, dispatch } = useSchedule()
+  const { state, dispatch, specialists, spaces } = useSchedule()
   const [viewDropOpen, setViewDropOpen] = useState(false)
   const [createDropOpen, setCreateDropOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -30,13 +112,15 @@ export default function ScheduleArea() {
 
   const { selectedDate, viewMode } = state
   const title = `${MONTHS_RU[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`
-
   const viewLabels: Record<string, string> = { week: 'Неделя', day: 'День' }
+
+  const allSpecSelected = state.selectedSpecialistIds.length === specialists.length
+  const allSpaceSelected = state.selectedSpaceIds.length === spaces.length
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-white rounded-xl border border-slate-200 overflow-hidden">
       {/* Control bar */}
-      <div className="flex items-center justify-between px-5 py-2 flex-shrink-0">
+      <div className="flex items-center justify-between px-5 py-2 flex-shrink-0 gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           {/* Title */}
           <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
@@ -80,7 +164,49 @@ export default function ScheduleArea() {
         </div>
 
         {/* Right side */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Specialist multi-select */}
+          <MultiSelectDropdown
+            label="Все специалисты"
+            items={specialists.map(s => ({ id: s.id, name: s.name, color: s.avatarColor, initials: s.initials }))}
+            selectedIds={state.selectedSpecialistIds}
+            onToggle={id => dispatch({ type: 'TOGGLE_SPECIALIST', payload: id })}
+            onSelectAll={() => {
+              if (allSpecSelected) {
+                specialists.forEach(s => {
+                  if (state.selectedSpecialistIds.includes(s.id))
+                    dispatch({ type: 'TOGGLE_SPECIALIST', payload: s.id })
+                })
+              } else {
+                specialists.forEach(s => {
+                  if (!state.selectedSpecialistIds.includes(s.id))
+                    dispatch({ type: 'TOGGLE_SPECIALIST', payload: s.id })
+                })
+              }
+            }}
+          />
+
+          {/* Space multi-select */}
+          <MultiSelectDropdown
+            label="Все пространства"
+            items={spaces.map(s => ({ id: s.id, name: s.name }))}
+            selectedIds={state.selectedSpaceIds}
+            onToggle={id => dispatch({ type: 'TOGGLE_SPACE', payload: id })}
+            onSelectAll={() => {
+              if (allSpaceSelected) {
+                spaces.forEach(s => {
+                  if (state.selectedSpaceIds.includes(s.id))
+                    dispatch({ type: 'TOGGLE_SPACE', payload: s.id })
+                })
+              } else {
+                spaces.forEach(s => {
+                  if (!state.selectedSpaceIds.includes(s.id))
+                    dispatch({ type: 'TOGGLE_SPACE', payload: s.id })
+                })
+              }
+            }}
+          />
+
           {/* Day toggle (only in day view) */}
           {viewMode === 'day' && (
             <div className="flex rounded-lg border border-gray-200 overflow-hidden">
@@ -105,7 +231,7 @@ export default function ScheduleArea() {
                   const now = state.selectedDate
                   const start = new Date(now); start.setHours(9, 0, 0, 0)
                   const end = new Date(now); end.setHours(10, 0, 0, 0)
-                  dispatch({ type: 'SET_CREATE_MODAL', payload: { startTime: start, endTime: end, columnKey: '' } })
+                  dispatch({ type: 'SET_CREATE_MODAL', payload: { startTime: start, endTime: end, columnKey: '', slotType: 'fixed' } })
                 }}
               >
                 Создать
@@ -158,11 +284,16 @@ export default function ScheduleArea() {
         />
       )}
 
-      {/* Full edit / create modal */}
+      {/* Edit modal for existing slots */}
       <SlotModal
-        isOpen={editOpen || !!state.createModalState}
+        isOpen={editOpen}
         onClose={closeAll}
       />
+
+      {/* Create drawer (right-side panel) */}
+      {state.createModalState && !editOpen && (
+        <CreateSlotDrawer onClose={closeAll} />
+      )}
     </div>
   )
 }

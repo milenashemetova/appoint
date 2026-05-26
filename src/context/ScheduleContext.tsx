@@ -81,7 +81,16 @@ function reducer(state: State, action: Action): State {
     case 'SET_SLOT_RECT': return { ...state, selectedSlotRect: action.payload }
     case 'SET_DRAG': return { ...state, dragState: action.payload }
     case 'SET_CREATE_MODAL': return { ...state, createModalState: action.payload }
-    case 'ADD_SLOT': return { ...state, slots: [...state.slots, action.payload] }
+    case 'ADD_SLOT': {
+      const s = action.payload
+      const specIds = s.specialistId && !state.selectedSpecialistIds.includes(s.specialistId)
+        ? [...state.selectedSpecialistIds, s.specialistId]
+        : state.selectedSpecialistIds
+      const spaceIds = s.spaceId && !state.selectedSpaceIds.includes(s.spaceId)
+        ? [...state.selectedSpaceIds, s.spaceId]
+        : state.selectedSpaceIds
+      return { ...state, slots: [...state.slots, s], selectedSpecialistIds: specIds, selectedSpaceIds: spaceIds }
+    }
     case 'UPDATE_SLOT': return { ...state, slots: state.slots.map(s => s.id === action.payload.id ? action.payload : s) }
     case 'DELETE_SLOT': return { ...state, slots: state.slots.filter(s => s.id !== action.payload), selectedSlot: null, selectedSlotRect: null }
     default: return state
