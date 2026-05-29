@@ -62,7 +62,7 @@ const initialState: State = {
   locationTab: 'schedule',
   currentLocationId: 'reshape',
   viewMode: 'week',
-  selectedDate: new Date(2026, 4, 22),
+  selectedDate: new Date(),
   dayToggle: 'specialists',
   selectedSpecialistIds: ['anna'],
   selectedSpaceIds: ['zal-a'],
