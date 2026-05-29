@@ -1,8 +1,8 @@
 import { ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react'
 import { useState } from 'react'
 import { useSchedule } from '../../context/ScheduleContext'
-import { MONTHS_RU, MONTHS_RU_GEN, addDays, addWeeks } from '../../utils/dateUtils'
-import { mondayKey } from '../../utils/availabilityUtils'
+import { MONTHS_RU, MONTHS_RU_GEN, addDays, addWeeks, weekDays } from '../../utils/dateUtils'
+import { mondayKey, toDateKey } from '../../utils/availabilityUtils'
 import WeekView from './WeekView'
 import DayView from './DayView'
 import SlotModal from '../Modals/SlotModal'
@@ -108,6 +108,7 @@ export default function ScheduleArea() {
   const [availRepeat, setAvailRepeat] = useState(false)
   const [availUntil, setAvailUntil] = useState<string | undefined>(undefined)
   const [untilModalOpen, setUntilModalOpen] = useState(false)
+  const [savedToast, setSavedToast] = useState<string | null>(null)
 
   const closeAll = () => {
     setEditOpen(false)
@@ -115,15 +116,33 @@ export default function ScheduleArea() {
     dispatch({ type: 'SET_CREATE_MODAL', payload: null })
   }
 
+  const propagateDraftToWeek = (newDate: Date) => {
+    if (!state.availabilityEditMode || state.viewMode !== 'week') return
+    // Build weekday → blocks from current draft
+    const pattern: Partial<Record<number, typeof state.draftAvailability[string]>> = {}
+    for (const day of weekDays(state.selectedDate)) {
+      const key = toDateKey(day)
+      if (state.draftAvailability[key]?.length) pattern[day.getDay()] = state.draftAvailability[key]
+    }
+    // Pre-populate new week days that have no draft entry yet
+    for (const day of weekDays(newDate)) {
+      const key = toDateKey(day)
+      const dow = day.getDay()
+      if (!state.draftAvailability[key] && pattern[dow]) {
+        dispatch({ type: 'SET_DRAFT_DAY', payload: { dateKey: key, blocks: pattern[dow]! } })
+      }
+    }
+  }
+
   const goBack = () => {
-    if (state.viewMode === 'week') dispatch({ type: 'SET_DATE', payload: addWeeks(state.selectedDate, -1) })
-    else dispatch({ type: 'SET_DATE', payload: addDays(state.selectedDate, -1) })
-    if (state.availabilityEditMode) setAvailRepeat(false)
+    const newDate = state.viewMode === 'week' ? addWeeks(state.selectedDate, -1) : addDays(state.selectedDate, -1)
+    propagateDraftToWeek(newDate)
+    dispatch({ type: 'SET_DATE', payload: newDate })
   }
   const goNext = () => {
-    if (state.viewMode === 'week') dispatch({ type: 'SET_DATE', payload: addWeeks(state.selectedDate, 1) })
-    else dispatch({ type: 'SET_DATE', payload: addDays(state.selectedDate, 1) })
-    if (state.availabilityEditMode) setAvailRepeat(false)
+    const newDate = state.viewMode === 'week' ? addWeeks(state.selectedDate, 1) : addDays(state.selectedDate, 1)
+    propagateDraftToWeek(newDate)
+    dispatch({ type: 'SET_DATE', payload: newDate })
   }
 
   const saveAvailability = () => {
@@ -132,6 +151,13 @@ export default function ScheduleArea() {
       type: 'SAVE_AVAILABILITY',
       payload: { repeatsWeekly: availRepeat, until: availUntil, weekMondayKey },
     })
+    const msg = availUntil
+      ? `Доступность настроена до ${formatDate(availUntil)}`
+      : availRepeat
+        ? 'Доступность настроена (повторяется еженедельно)'
+        : 'Доступность сохранена'
+    setSavedToast(msg)
+    setTimeout(() => setSavedToast(null), 4000)
     setAvailRepeat(false)
     setAvailUntil(undefined)
   }
@@ -155,7 +181,11 @@ export default function ScheduleArea() {
   )
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div className={`flex-1 flex flex-col min-w-0 bg-white rounded-xl overflow-hidden transition-all ${
+      state.availabilityEditMode
+        ? 'border-2 border-blue-500'
+        : 'border border-slate-200'
+    }`}>
 
       {/* Control bar — switches between normal and edit mode */}
       {state.availabilityEditMode ? (
@@ -399,6 +429,18 @@ export default function ScheduleArea() {
           onClose={() => setUntilModalOpen(false)}
           onSelect={date => { setAvailUntil(date); setUntilModalOpen(false) }}
         />
+      )}
+
+      {/* Success toast */}
+      {savedToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2.5 bg-gray-900 text-white px-4 py-3 rounded-xl shadow-2xl text-sm pointer-events-none">
+          <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+              <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+          {savedToast}
+        </div>
       )}
     </div>
   )

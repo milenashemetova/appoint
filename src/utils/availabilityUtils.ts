@@ -70,3 +70,16 @@ export function isTimeAvailable(startMin: number, endMin: number, blocks: Availa
   }
   return false
 }
+
+export function subtractBlock(existing: AvailabilityBlock[], eraseStart: number, eraseEnd: number): AvailabilityBlock[] {
+  const result: AvailabilityBlock[] = []
+  for (const block of existing) {
+    if (block.endMin <= eraseStart || block.startMin >= eraseEnd) {
+      result.push(block)
+    } else {
+      if (block.startMin < eraseStart) result.push({ startMin: block.startMin, endMin: eraseStart })
+      if (block.endMin > eraseEnd) result.push({ startMin: eraseEnd, endMin: block.endMin })
+    }
+  }
+  return result
+}
