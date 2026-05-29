@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import type { AvailabilityBlock } from '../../types'
 import { useSchedule } from '../../context/ScheduleContext'
 import { MONTHS_RU, MONTHS_RU_GEN, addDays, addWeeks, weekDays } from '../../utils/dateUtils'
 import { mondayKey, toDateKey } from '../../utils/availabilityUtils'
@@ -105,10 +106,23 @@ export default function ScheduleArea() {
   const [editOpen, setEditOpen] = useState(false)
 
   // Availability edit mode local state
-  const [availRepeat, setAvailRepeat] = useState(false)
+  const [availRepeat, setAvailRepeat] = useState(true)  // on by default
   const [availUntil, setAvailUntil] = useState<string | undefined>(undefined)
   const [untilModalOpen, setUntilModalOpen] = useState(false)
   const [savedToast, setSavedToast] = useState<string | null>(null)
+  const [patternSourceDate, setPatternSourceDate] = useState<Date | null>(null)
+
+  // Pattern for the source week (by day-of-week), used to detect exceptions
+  const patternByDow = useMemo<Partial<Record<number, AvailabilityBlock[]>>>(() => {
+    if (!availRepeat || !patternSourceDate) return {}
+    const result: Partial<Record<number, AvailabilityBlock[]>> = {}
+    for (const day of weekDays(patternSourceDate)) {
+      const key = toDateKey(day)
+      const blocks = state.draftAvailability[key]
+      if (blocks?.length) result[day.getDay()] = blocks
+    }
+    return result
+  }, [availRepeat, patternSourceDate, state.draftAvailability])
 
   const closeAll = () => {
     setEditOpen(false)
@@ -116,20 +130,31 @@ export default function ScheduleArea() {
     dispatch({ type: 'SET_CREATE_MODAL', payload: null })
   }
 
+  const enterAvailEdit = () => {
+    setAvailRepeat(true)
+    setAvailUntil(undefined)
+    setPatternSourceDate(state.selectedDate)
+    dispatch({ type: 'ENTER_AVAILABILITY_EDIT' })
+  }
+
+  const cancelAvailEdit = () => {
+    setPatternSourceDate(null)
+    dispatch({ type: 'EXIT_AVAILABILITY_EDIT' })
+  }
+
   const propagateDraftToWeek = (newDate: Date) => {
     if (!state.availabilityEditMode || state.viewMode !== 'week') return
-    // Build weekday → blocks from current draft
+    // Use the pattern source week (or current week if no source set)
+    const sourceWeekDays = weekDays(patternSourceDate ?? state.selectedDate)
     const pattern: Partial<Record<number, typeof state.draftAvailability[string]>> = {}
-    for (const day of weekDays(state.selectedDate)) {
+    for (const day of sourceWeekDays) {
       const key = toDateKey(day)
       if (state.draftAvailability[key]?.length) pattern[day.getDay()] = state.draftAvailability[key]
     }
-    // Pre-populate new week days that have no draft entry yet
     for (const day of weekDays(newDate)) {
       const key = toDateKey(day)
-      const dow = day.getDay()
-      if (!state.draftAvailability[key] && pattern[dow]) {
-        dispatch({ type: 'SET_DRAFT_DAY', payload: { dateKey: key, blocks: pattern[dow]! } })
+      if (!state.draftAvailability[key] && pattern[day.getDay()]) {
+        dispatch({ type: 'SET_DRAFT_DAY', payload: { dateKey: key, blocks: pattern[day.getDay()]! } })
       }
     }
   }
@@ -158,8 +183,9 @@ export default function ScheduleArea() {
         : 'Доступность сохранена'
     setSavedToast(msg)
     setTimeout(() => setSavedToast(null), 4000)
-    setAvailRepeat(false)
+    setAvailRepeat(true)
     setAvailUntil(undefined)
+    setPatternSourceDate(null)
   }
 
   const { selectedDate, viewMode } = state
@@ -196,7 +222,7 @@ export default function ScheduleArea() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => dispatch({ type: 'EXIT_AVAILABILITY_EDIT' })}
+              onClick={cancelAvailEdit}
               className="px-4 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
             >
               Отменить
@@ -355,24 +381,34 @@ export default function ScheduleArea() {
 
       {/* Main grid area */}
       <div className="flex-1 overflow-hidden border-t border-gray-100">
-        {viewMode === 'week' ? <WeekView /> : <DayView />}
+        {viewMode === 'week'
+          ? <WeekView availRepeat={availRepeat} patternByDow={patternByDow} patternSourceDate={patternSourceDate} />
+          : <DayView />
+        }
       </div>
 
       {/* Availability footer — normal mode */}
       {!state.availabilityEditMode && (
         <div className="border-t border-gray-100 px-5 py-2.5 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3 text-xs text-gray-400">
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm bg-blue-500 inline-block" />
-              <span>Событие</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm bg-green-500 inline-block" />
-              <span>Услуга</span>
-            </span>
+            {state.availability.isConfigured && (
+              <>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-sm bg-white border border-gray-300 inline-block" />
+                  <span>Доступно для записи</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: 'rgba(241,245,249,0.92)', border: '1px solid #e2e8f0' }} />
+                  <span>Закрыто</span>
+                </span>
+              </>
+            )}
+            {!state.availability.isConfigured && (
+              <span className="text-gray-400 italic">Доступность не настроена — клиенты не видят слотов для записи</span>
+            )}
           </div>
           <button
-            onClick={() => dispatch({ type: 'ENTER_AVAILABILITY_EDIT' })}
+            onClick={enterAvailEdit}
             className="text-sm text-blue-500 hover:text-blue-600 font-medium transition-colors"
           >
             {state.availability.isConfigured ? 'Изменить доступность' : '+ Настроить доступность'}
@@ -382,19 +418,23 @@ export default function ScheduleArea() {
 
       {/* Availability footer — edit mode */}
       {state.availabilityEditMode && (
-        <div className="border-t border-gray-100 px-5 py-3 flex items-center justify-between flex-shrink-0 bg-slate-50">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={availRepeat}
-              onChange={e => setAvailRepeat(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-blue-500 cursor-pointer"
-            />
-            <span className="text-sm text-gray-600">Использовать настройку до конца выбранного периода</span>
+        <div className="border-t border-blue-100 px-5 py-3 flex items-center justify-between flex-shrink-0 bg-blue-50/60">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <span
+              className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors ${availRepeat ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}
+              onClick={() => setAvailRepeat(v => !v)}
+            >
+              {availRepeat && (
+                <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                  <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </span>
+            <span className="text-sm text-gray-700">Использовать настройку до конца выбранного периода</span>
           </label>
           <button
             onClick={() => setUntilModalOpen(true)}
-            className="text-sm text-blue-500 hover:text-blue-600 font-medium transition-colors"
+            className="text-sm text-blue-500 hover:text-blue-600 font-medium transition-colors flex-shrink-0 ml-4"
           >
             {availUntil ? `Использовать до ${formatDate(availUntil)}` : 'Использовать до...'}
           </button>

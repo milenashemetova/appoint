@@ -1,9 +1,9 @@
-import { useRef, useState, useCallback, useEffect } from 'react'
-import type { Slot } from '../../types'
+import { useRef, useState, useCallback } from 'react'
+import type { Slot, AvailabilityBlock } from '../../types'
 import { useSchedule } from '../../context/ScheduleContext'
 import { DAYS_SHORT_RU, weekDays, isSameDay, isToday } from '../../utils/dateUtils'
 import { layoutSlots, TOTAL_HEIGHT, GRID_START, PX_PER_MIN, snapToGrid, minutesToPx } from '../../utils/slotUtils'
-import { getBlocksForDate, toDateKey, mergeBlocks, subtractBlock } from '../../utils/availabilityUtils'
+import { getBlocksForDate, toDateKey, mondayKey, mergeBlocks, subtractBlock } from '../../utils/availabilityUtils'
 import SlotCard from './SlotCard'
 import TimeAxis from './TimeAxis'
 import GridLines from './GridLines'
@@ -12,18 +12,26 @@ import AvailabilityMask from './AvailabilityMask'
 
 interface DragPreview { startMin: number; endMin: number }
 
-export default function WeekView() {
+interface Props {
+  availRepeat: boolean
+  patternByDow: Partial<Record<number, AvailabilityBlock[]>>
+  patternSourceDate: Date | null
+}
+
+function blocksEqual(a: AvailabilityBlock[] | undefined, b: AvailabilityBlock[] | undefined): boolean {
+  const aa = a ?? []
+  const bb = b ?? []
+  if (aa.length !== bb.length) return false
+  return aa.every((blk, i) => blk.startMin === bb[i].startMin && blk.endMin === bb[i].endMin)
+}
+
+export default function WeekView({ availRepeat, patternByDow, patternSourceDate }: Props) {
   const { state, dispatch } = useSchedule()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<{ colIdx: number; preview: DragPreview; isAvailEdit: boolean; isErase: boolean } | null>(null)
-  const [eraseMode, setEraseMode] = useState(false)
   const colRefs = useRef<(HTMLDivElement | null)[]>([])
 
   const days = weekDays(state.selectedDate)
-
-  useEffect(() => {
-    if (!state.availabilityEditMode) setEraseMode(false)
-  }, [state.availabilityEditMode])
 
   const getSlotsForDay = (day: Date): Slot[] =>
     state.slots.filter(s => {
@@ -45,7 +53,10 @@ export default function WeekView() {
     const startMin = getMinFromY(y)
 
     if (state.availabilityEditMode) {
-      const isErase = eraseMode
+      const dateKey = toDateKey(days[dayIdx])
+      const existing = state.draftAvailability[dateKey] ?? []
+      // Auto-detect: click on existing white block → erase; click on gray → draw
+      const isErase = existing.some(b => b.startMin <= startMin && b.endMin > startMin)
       setDrag({ colIdx: dayIdx, preview: { startMin, endMin: startMin + 60 }, isAvailEdit: true, isErase })
 
       const onMove = (me: MouseEvent) => {
@@ -59,15 +70,10 @@ export default function WeekView() {
         const sMin = Math.min(getMinFromY(y), curMin)
         const eMin = Math.max(getMinFromY(y), curMin)
         if (eMin - sMin >= 15) {
-          const day = days[dayIdx]
-          const dateKey = toDateKey(day)
-          const existing = state.draftAvailability[dateKey] ?? []
           if (isErase) {
-            const result = subtractBlock(existing, sMin, eMin)
-            dispatch({ type: 'SET_DRAFT_DAY', payload: { dateKey, blocks: result } })
+            dispatch({ type: 'SET_DRAFT_DAY', payload: { dateKey, blocks: subtractBlock(existing, sMin, eMin) } })
           } else {
-            const merged = mergeBlocks([...existing, { startMin: sMin, endMin: eMin }])
-            dispatch({ type: 'SET_DRAFT_DAY', payload: { dateKey, blocks: merged } })
+            dispatch({ type: 'SET_DRAFT_DAY', payload: { dateKey, blocks: mergeBlocks([...existing, { startMin: sMin, endMin: eMin }]) } })
           }
         }
         setDrag(null)
@@ -79,10 +85,19 @@ export default function WeekView() {
       return
     }
 
-    // Normal mode: prevent drag in the past
+    // Normal mode
     const tentativeStart = new Date(days[dayIdx])
     tentativeStart.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0)
     if (tentativeStart < new Date()) return
+
+    // Block drag in unavailable zones (only free events can be created in white zones)
+    let slotTypeForCreate: 'free' | 'fixed' | undefined
+    if (state.availability.isConfigured) {
+      const blocks = getBlocksForDate(days[dayIdx], state.availability)
+      const isInAvailable = blocks.some(b => b.startMin <= startMin && b.endMin > startMin)
+      if (!isInAvailable) return  // gray zone: no drag creation
+      slotTypeForCreate = 'free'  // white zone → open as service
+    }
 
     setDrag({ colIdx: dayIdx, preview: { startMin, endMin: startMin + 60 }, isAvailEdit: false, isErase: false })
 
@@ -98,11 +113,9 @@ export default function WeekView() {
       const eMin = Math.max(getMinFromY(y), curMin)
       if (eMin - sMin >= 15) {
         const day = days[dayIdx]
-        const startTime = new Date(day)
-        startTime.setHours(Math.floor(sMin / 60), sMin % 60, 0, 0)
-        const endTime = new Date(day)
-        endTime.setHours(Math.floor(eMin / 60), eMin % 60, 0, 0)
-        dispatch({ type: 'SET_CREATE_MODAL', payload: { startTime, endTime, columnKey: '' } })
+        const startTime = new Date(day); startTime.setHours(Math.floor(sMin / 60), sMin % 60, 0, 0)
+        const endTime = new Date(day); endTime.setHours(Math.floor(eMin / 60), eMin % 60, 0, 0)
+        dispatch({ type: 'SET_CREATE_MODAL', payload: { startTime, endTime, columnKey: '', slotType: slotTypeForCreate } })
       }
       setDrag(null)
       window.removeEventListener('mousemove', onMove)
@@ -110,34 +123,32 @@ export default function WeekView() {
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
-  }, [days, dispatch, state.availabilityEditMode, state.draftAvailability, eraseMode])
+  }, [days, dispatch, state.availabilityEditMode, state.draftAvailability, state.availability])
+
+  const isSourceWeek = patternSourceDate
+    ? mondayKey(state.selectedDate) === mondayKey(patternSourceDate)
+    : true
 
   return (
     <div className="flex flex-col h-full">
       {/* Day headers */}
       <div className="flex border-b border-gray-200 bg-white sticky top-0 z-10 flex-shrink-0">
-        {/* Time axis spacer — shows erase/draw toggle in edit mode */}
-        <div className="w-14 flex-shrink-0 flex items-end justify-center pb-1.5">
-          {state.availabilityEditMode && (
-            <button
-              onClick={() => setEraseMode(v => !v)}
-              title={eraseMode ? 'Режим стирания (клик для рисования)' : 'Режим рисования (клик для стирания)'}
-              className={`w-7 h-7 flex items-center justify-center rounded-lg text-sm border transition-colors ${
-                eraseMode
-                  ? 'bg-red-50 border-red-300 text-red-500'
-                  : 'bg-blue-50 border-blue-300 text-blue-500'
-              }`}
-            >
-              {eraseMode ? '✕' : '✏'}
-            </button>
-          )}
-        </div>
+        <div className="w-14 flex-shrink-0" />
         {days.map((day, i) => {
           const isT = isToday(day)
+
+          // Exception indicator: this day differs from the weekly pattern
+          const dateKey = toDateKey(day)
+          const isException = state.availabilityEditMode &&
+            availRepeat &&
+            !isSourceWeek &&
+            Object.keys(patternByDow).length > 0 &&
+            !blocksEqual(patternByDow[day.getDay()], state.draftAvailability[dateKey])
+
           return (
             <div
               key={i}
-              className={`flex-1 text-center py-2 border-l border-gray-100 ${state.availabilityEditMode ? 'cursor-default' : 'cursor-pointer hover:bg-gray-50'}`}
+              className={`flex-1 text-center py-2 border-l border-gray-100 relative ${state.availabilityEditMode ? 'cursor-default' : 'cursor-pointer hover:bg-gray-50'}`}
               onClick={() => {
                 if (!state.availabilityEditMode) {
                   dispatch({ type: 'SET_DATE', payload: day })
@@ -149,13 +160,19 @@ export default function WeekView() {
               <div className={`text-sm font-semibold mx-auto mt-0.5 w-7 h-7 flex items-center justify-center rounded-full ${isT ? 'bg-blue-500 text-white' : 'text-gray-800'}`}>
                 {day.getDate()}
               </div>
+              {isException && (
+                <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block" />
+                  <span className="text-[9px] text-orange-500 leading-none">искл.</span>
+                </div>
+              )}
             </div>
           )
         })}
       </div>
 
       {/* Scrollable grid */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden relative">
         <div className="flex" style={{ height: TOTAL_HEIGHT }}>
           <TimeAxis />
           {days.map((day, dayIdx) => {
@@ -164,29 +181,27 @@ export default function WeekView() {
             const isT = isToday(day)
             const dateKey = toDateKey(day)
 
-            // Availability mask
             let availMask: React.ReactNode = null
             if (state.availabilityEditMode) {
               const draftBlocks = state.draftAvailability[dateKey] ?? []
               availMask = (
                 <>
-                  {/* Full gray background */}
                   <div
                     className="absolute inset-0 pointer-events-none"
                     style={{ height: TOTAL_HEIGHT, backgroundColor: 'rgba(241,245,249,0.92)' }}
                   />
-                  {/* White available blocks */}
-                  {draftBlocks.map((block, i) => {
-                    const top = minutesToPx(block.startMin - gridStartMin)
-                    const height = minutesToPx(block.endMin - block.startMin)
-                    return (
-                      <div
-                        key={i}
-                        className="absolute left-0 right-0 pointer-events-none"
-                        style={{ top, height, backgroundColor: '#ffffff', zIndex: 1 }}
-                      />
-                    )
-                  })}
+                  {draftBlocks.map((block, i) => (
+                    <div
+                      key={i}
+                      className="absolute left-0 right-0 pointer-events-none"
+                      style={{
+                        top: minutesToPx(block.startMin - gridStartMin),
+                        height: minutesToPx(block.endMin - block.startMin),
+                        backgroundColor: '#ffffff',
+                        zIndex: 1,
+                      }}
+                    />
+                  ))}
                 </>
               )
             } else if (state.availability.isConfigured) {
@@ -223,33 +238,23 @@ export default function WeekView() {
                   const durMin = endMin - startMin
                   const durH = Math.floor(durMin / 60); const durM = durMin % 60
                   const durLabel = durH === 0 ? `${durM} мин` : durM === 0 ? `${durH}ч` : `${durH}ч ${durM}мин`
-                  const fmt = (m: number) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
+                  const fmt = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 
                   if (drag.isAvailEdit) {
                     return drag.isErase ? (
-                      // Erase preview: red tint
                       <div
                         className="absolute left-0 right-0 border border-dashed border-red-400 pointer-events-none z-20 flex flex-col justify-between"
-                        style={{
-                          top: minutesToPx(startMin - gridStartMin),
-                          height: minutesToPx(durMin),
-                          backgroundColor: 'rgba(239,68,68,0.12)',
-                        }}
+                        style={{ top: minutesToPx(startMin - gridStartMin), height: minutesToPx(durMin), backgroundColor: 'rgba(239,68,68,0.1)' }}
                       >
-                        <div className="text-[10px] font-medium px-1.5 pt-1 text-red-600">{fmt(startMin)} – {fmt(endMin)}</div>
+                        <div className="text-[10px] font-medium px-1.5 pt-1 text-red-500">{fmt(startMin)} – {fmt(endMin)}</div>
                         <div className="px-1.5 pb-1 flex justify-end">
                           <span className="text-[10px] bg-red-400 text-white rounded px-1.5 py-0.5 font-medium leading-none">{durLabel}</span>
                         </div>
                       </div>
                     ) : (
-                      // Add preview: clean white with blue border
                       <div
-                        className="absolute left-0 right-0 border border-blue-400 border-dashed pointer-events-none z-20 flex flex-col justify-between"
-                        style={{
-                          top: minutesToPx(startMin - gridStartMin),
-                          height: minutesToPx(durMin),
-                          backgroundColor: 'rgba(255,255,255,0.95)',
-                        }}
+                        className="absolute left-0 right-0 border border-dashed border-blue-400 pointer-events-none z-20 flex flex-col justify-between"
+                        style={{ top: minutesToPx(startMin - gridStartMin), height: minutesToPx(durMin), backgroundColor: 'rgba(255,255,255,0.95)' }}
                       >
                         <div className="text-[10px] font-medium px-1.5 pt-1 text-blue-500">{fmt(startMin)} – {fmt(endMin)}</div>
                         <div className="px-1.5 pb-1 flex justify-end">
@@ -262,10 +267,7 @@ export default function WeekView() {
                   return (
                     <div
                       className="absolute left-0 right-0 border border-blue-400 rounded pointer-events-none z-20 flex flex-col justify-between bg-blue-400/15"
-                      style={{
-                        top: minutesToPx(startMin - gridStartMin),
-                        height: minutesToPx(durMin),
-                      }}
+                      style={{ top: minutesToPx(startMin - gridStartMin), height: minutesToPx(durMin) }}
                     >
                       <div className="text-[10px] font-medium px-1.5 pt-1 text-blue-700">{fmt(startMin)} – {fmt(endMin)}</div>
                       <div className="px-1.5 pb-1 flex justify-end">
@@ -278,6 +280,15 @@ export default function WeekView() {
             )
           })}
         </div>
+
+        {/* Hint strip at bottom of grid in edit mode */}
+        {state.availabilityEditMode && (
+          <div className="sticky bottom-0 left-0 right-0 bg-blue-50/95 border-t border-blue-100 flex items-center justify-center py-1.5 z-20 pointer-events-none">
+            <p className="text-xs text-blue-500 font-medium">
+              Белые окна — открыты для записи · Рисуйте по серому чтобы открыть, по белому — чтобы закрыть
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
