@@ -82,3 +82,18 @@ export interface CreateMenuState {
   endTime: Date
   columnKey: string
 }
+
+export interface AvailabilityBlock {
+  startMin: number  // minutes from midnight
+  endMin: number
+}
+
+export interface AvailabilityState {
+  isConfigured: boolean
+  dailyBlocks: Record<string, AvailabilityBlock[]>  // key: "YYYY-MM-DD"
+  repeatPattern: {
+    weekdays: Partial<Record<number, AvailabilityBlock[]>>  // 0=Sun..6=Sat
+    fromWeekKey: string   // "YYYY-MM-DD" of that week's Monday
+    until?: string        // "YYYY-MM-DD" end date, undefined = forever
+  } | null
+}

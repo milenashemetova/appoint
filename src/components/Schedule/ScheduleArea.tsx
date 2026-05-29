@@ -1,12 +1,14 @@
-import { ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Check, Calendar } from 'lucide-react'
 import { useState } from 'react'
 import { useSchedule } from '../../context/ScheduleContext'
 import { MONTHS_RU, addDays, addWeeks } from '../../utils/dateUtils'
+import { mondayKey } from '../../utils/availabilityUtils'
 import WeekView from './WeekView'
 import DayView from './DayView'
 import SlotModal from '../Modals/SlotModal'
 import SlotPopover from '../Modals/SlotPopover'
 import CreateSlotDrawer from '../Modals/CreateSlotDrawer'
+import AvailabilityUntilModal from '../Modals/AvailabilityUntilModal'
 
 // ── Multi-select dropdown ────────────────────────────────────────────────────
 
@@ -94,11 +96,32 @@ export default function ScheduleArea() {
   const [viewDropOpen, setViewDropOpen] = useState(false)
   const [createDropOpen, setCreateDropOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [repeatsWeekly, setRepeatsWeekly] = useState(false)
+  const [untilDate, setUntilDate] = useState<string | undefined>(undefined)
+  const [showUntilModal, setShowUntilModal] = useState(false)
 
   const closeAll = () => {
     setEditOpen(false)
     dispatch({ type: 'SELECT_SLOT', payload: null })
     dispatch({ type: 'SET_CREATE_MODAL', payload: null })
+  }
+
+  const enterAvailEdit = () => {
+    setRepeatsWeekly(false)
+    setUntilDate(undefined)
+    dispatch({ type: 'ENTER_AVAILABILITY_EDIT' })
+  }
+
+  const cancelAvailEdit = () => {
+    dispatch({ type: 'EXIT_AVAILABILITY_EDIT' })
+  }
+
+  const saveAvailability = () => {
+    const wKey = mondayKey(state.selectedDate)
+    dispatch({
+      type: 'SAVE_AVAILABILITY',
+      payload: { repeatsWeekly, until: repeatsWeekly ? untilDate : undefined, weekMondayKey: wKey },
+    })
   }
 
   const goBack = () => {
@@ -119,8 +142,33 @@ export default function ScheduleArea() {
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-white rounded-xl border border-slate-200 overflow-hidden">
+
+      {/* Availability edit mode top bar */}
+      {state.availabilityEditMode && (
+        <div className="flex items-center justify-between px-5 py-2.5 bg-blue-50 border-b border-blue-100 flex-shrink-0">
+          <div>
+            <p className="text-sm font-semibold text-blue-900">Настройте доступность локации</p>
+            <p className="text-xs text-blue-600 mt-0.5">Выделите доступные часы на каждый день, перетащив мышью</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={cancelAvailEdit}
+              className="px-3 py-1.5 text-sm border border-blue-200 rounded-lg text-blue-700 hover:bg-blue-100 transition-colors"
+            >
+              Отменить
+            </button>
+            <button
+              onClick={saveAvailability}
+              className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+            >
+              Сохранить
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Control bar */}
-      <div className="flex items-center justify-between px-5 py-2 flex-shrink-0 gap-3 flex-wrap">
+      <div className={`flex items-center justify-between px-5 py-2 flex-shrink-0 gap-3 flex-wrap ${state.availabilityEditMode ? 'opacity-40 pointer-events-none' : ''}`}>
         <div className="flex items-center gap-3">
           {/* Title */}
           <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
@@ -274,8 +322,47 @@ export default function ScheduleArea() {
         {viewMode === 'week' ? <WeekView /> : <DayView />}
       </div>
 
+      {/* Availability edit mode bottom bar */}
+      {state.availabilityEditMode && (
+        <div className="border-t border-blue-100 bg-blue-50 px-5 py-3 flex items-center gap-4 flex-shrink-0">
+          <label className="flex items-center gap-2 cursor-pointer select-none flex-1">
+            <span
+              className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${repeatsWeekly ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}
+              onClick={() => setRepeatsWeekly(v => !v)}
+            >
+              {repeatsWeekly && (
+                <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                  <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </span>
+            <span className="text-sm text-blue-800">Использовать настройку до конца выбранного периода</span>
+          </label>
+          <button
+            onClick={() => setShowUntilModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-blue-200 rounded-lg text-blue-700 hover:bg-blue-100 transition-colors flex-shrink-0"
+          >
+            <Calendar size={13} />
+            {untilDate ? `До ${untilDate}` : 'Использовать до...'}
+          </button>
+        </div>
+      )}
+
+      {/* "Настроить доступность" button — shown when not in edit mode */}
+      {!state.availabilityEditMode && (
+        <div className="border-t border-gray-100 px-5 py-2 flex items-center justify-end flex-shrink-0">
+          <button
+            onClick={enterAvailEdit}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+          >
+            <Calendar size={13} />
+            Настроить доступность
+          </button>
+        </div>
+      )}
+
       {/* Popover: shown when a slot is selected (no edit modal open) */}
-      {state.selectedSlot && state.selectedSlotRect && !editOpen && (
+      {state.selectedSlot && state.selectedSlotRect && !editOpen && !state.availabilityEditMode && (
         <SlotPopover
           slot={state.selectedSlot}
           rect={state.selectedSlotRect}
@@ -291,8 +378,17 @@ export default function ScheduleArea() {
       />
 
       {/* Create drawer (right-side panel) */}
-      {state.createModalState && !editOpen && (
+      {state.createModalState && !editOpen && !state.availabilityEditMode && (
         <CreateSlotDrawer onClose={closeAll} />
+      )}
+
+      {/* Availability "until" date picker modal */}
+      {showUntilModal && (
+        <AvailabilityUntilModal
+          current={untilDate}
+          onClose={() => setShowUntilModal(false)}
+          onSelect={date => { setUntilDate(date); setShowUntilModal(false) }}
+        />
       )}
     </div>
   )

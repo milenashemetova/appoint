@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { useSchedule } from '../../context/ScheduleContext'
 import { SERVICE_GROUPS } from '../../data/servicesData'
+import { getBlocksForDate, isTimeAvailable } from '../../utils/availabilityUtils'
 
 type DrawerTab = 'free' | 'fixed'
 type RepeatMode = 'none' | 'daily' | 'weekly' | 'weekdays'
@@ -94,6 +95,14 @@ export default function CreateSlotDrawer({ onClose }: Props) {
     })
     onClose()
   }
+
+  // Availability check for free tab
+  const availBlocks = getBlocksForDate(cms.startTime, state.availability)
+  const timeAvailable = !state.availability.isConfigured || isTimeAvailable(
+    cms.startTime.getHours() * 60 + cms.startTime.getMinutes(),
+    cms.endTime.getHours() * 60 + cms.endTime.getMinutes(),
+    availBlocks
+  )
 
   const inputCls = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white transition-colors'
   const selectCls = `${inputCls} appearance-none cursor-pointer pr-8`
@@ -201,6 +210,11 @@ export default function CreateSlotDrawer({ onClose }: Props) {
           {/* ── Service client fields ─────────────────────────────── */}
           {tab === 'free' && (
             <section className="space-y-3">
+              {!timeAvailable && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 text-sm text-amber-700">
+                  В это время недоступна свободная запись. Создайте фиксированное событие.
+                </div>
+              )}
               <div>
                 <label className={labelCls}>Имя клиента</label>
                 <input value={form.clientName} onChange={e => set('clientName', e.target.value)} placeholder="Иван Иванов" className={inputCls} />
@@ -291,7 +305,11 @@ export default function CreateSlotDrawer({ onClose }: Props) {
           <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
             Отменить
           </button>
-          <button onClick={save} className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium">
+          <button
+            onClick={save}
+            disabled={tab === 'free' && !timeAvailable}
+            className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             {tab === 'free' ? 'Записать' : 'Создать'}
           </button>
         </div>
