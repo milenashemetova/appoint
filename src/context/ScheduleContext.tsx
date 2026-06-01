@@ -2,6 +2,7 @@ import { createContext, useContext, useReducer, type ReactNode } from 'react'
 import type { LocationTab, ViewMode, DayToggle, Slot, DragState, BookingRequest, AvailabilityState, AvailabilityBlock } from '../types'
 import { SPECIALISTS, SPACES, SLOTS } from '../data/mockData'
 import { INITIAL_REQUESTS } from '../data/requestsData'
+import { toDateKey, getDateKeyForDow, isInBaseWeek } from '../utils/availabilityUtils'
 
 export interface CreateModalState {
   startTime: Date
@@ -33,12 +34,11 @@ interface State {
   createModalState: CreateModalState | null
   availability: AvailabilityState
   availabilityEditMode: boolean
-  // Abstract week draft (keyed by getDay(): 0=Sun..6=Sat)
-  weekDraft: Partial<Record<number, AvailabilityBlock[]>>
-  weekDraftFromTemplate: boolean
-  // Single-day exception edit
-  exceptionEdit: { dateKey: string; dow: number } | null
-  exceptionDraft: AvailabilityBlock[]
+  // Edit mode state — date-keyed draft of availability blocks
+  editDraft: Record<string, AvailabilityBlock[]>
+  editBaseWeekMonday: string    // Monday of the "template" week
+  useWeekPattern: boolean       // checkbox: propagate base week DOW pattern to all weeks
+  editPriorDate: Date           // selectedDate before entering edit mode (restored on exit)
 }
 
 type Action =
@@ -60,13 +60,11 @@ type Action =
   | { type: 'REJECT_REQUEST'; payload: string }
   | { type: 'ENTER_AVAILABILITY_EDIT' }
   | { type: 'EXIT_AVAILABILITY_EDIT' }
-  | { type: 'SET_WEEK_DRAFT_DAY'; payload: { dayOfWeek: number; blocks: AvailabilityBlock[] } }
-  | { type: 'APPLY_WEEK_TEMPLATE'; payload: Partial<Record<number, AvailabilityBlock[]>> }
-  | { type: 'SAVE_AVAILABILITY'; payload: { until?: string; weekMondayKey: string } }
+  | { type: 'SET_EDIT_DAY'; payload: { dateKey: string; blocks: AvailabilityBlock[] } }
+  | { type: 'SET_USE_WEEK_PATTERN'; payload: boolean }
+  | { type: 'APPLY_EDIT_TEMPLATE'; payload: Partial<Record<number, AvailabilityBlock[]>> }
+  | { type: 'SAVE_AVAILABILITY'; payload: { until?: string } }
   | { type: 'SET_DATE_EXCEPTION'; payload: { dateKey: string; blocks: AvailabilityBlock[] | null } }
-  | { type: 'ENTER_EXCEPTION_EDIT'; payload: { dateKey: string; dow: number; initialBlocks: AvailabilityBlock[] } }
-  | { type: 'SET_EXCEPTION_DRAFT'; payload: AvailabilityBlock[] }
-  | { type: 'EXIT_EXCEPTION_EDIT' }
 
 const initialState: State = {
   locationTab: 'schedule',
@@ -84,10 +82,10 @@ const initialState: State = {
   createModalState: null,
   availability: { isConfigured: false, dailyBlocks: {}, repeatPattern: null },
   availabilityEditMode: false,
-  weekDraft: {},
-  weekDraftFromTemplate: false,
-  exceptionEdit: null,
-  exceptionDraft: [],
+  editDraft: {},
+  editBaseWeekMonday: '',
+  useWeekPattern: true,
+  editPriorDate: new Date(),
 }
 
 function reducer(state: State, action: Action): State {
@@ -152,62 +150,115 @@ function reducer(state: State, action: Action): State {
     case 'REJECT_REQUEST':
       return { ...state, requests: state.requests.map(r => r.id === action.payload ? { ...r, status: 'rejected' as const } : r) }
 
-    case 'ENTER_AVAILABILITY_EDIT':
+    case 'ENTER_AVAILABILITY_EDIT': {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const dow = today.getDay()
+      // Use next Monday as base week if today is not Monday (so user always edits a full week)
+      const daysUntilNextMon = dow === 1 ? 0 : dow === 0 ? 1 : 8 - dow
+      const baseDate = new Date(today)
+      baseDate.setDate(baseDate.getDate() + daysUntilNextMon)
+      const editBaseWeekMonday = toDateKey(baseDate)
+
+      // Initialize editDraft from existing repeatPattern (populate base week days)
+      const editDraft: Record<string, AvailabilityBlock[]> = {}
+      if (state.availability.repeatPattern?.weekdays) {
+        const { weekdays } = state.availability.repeatPattern
+        for (const dowStr of Object.keys(weekdays)) {
+          const d = parseInt(dowStr)
+          const blocks = weekdays[d as keyof typeof weekdays]
+          if (blocks) {
+            editDraft[getDateKeyForDow(editBaseWeekMonday, d)] = blocks
+          }
+        }
+      }
+
       return {
         ...state,
         availabilityEditMode: true,
-        weekDraft: { ...(state.availability.repeatPattern?.weekdays ?? {}) },
-        weekDraftFromTemplate: false,
+        editDraft,
+        editBaseWeekMonday,
+        useWeekPattern: true,
+        editPriorDate: state.selectedDate,
+        selectedDate: baseDate,
       }
+    }
+
     case 'EXIT_AVAILABILITY_EDIT':
-      return { ...state, availabilityEditMode: false, weekDraft: {}, weekDraftFromTemplate: false }
-
-    case 'SET_WEEK_DRAFT_DAY':
       return {
         ...state,
-        weekDraft: { ...state.weekDraft, [action.payload.dayOfWeek]: action.payload.blocks },
-        weekDraftFromTemplate: false,  // detach template on manual edit
+        availabilityEditMode: false,
+        editDraft: {},
+        editBaseWeekMonday: '',
+        useWeekPattern: true,
+        selectedDate: state.editPriorDate,
       }
 
-    case 'APPLY_WEEK_TEMPLATE':
-      return {
-        ...state,
-        weekDraft: { ...action.payload },
-        weekDraftFromTemplate: true,
+    case 'SET_EDIT_DAY':
+      return { ...state, editDraft: { ...state.editDraft, [action.payload.dateKey]: action.payload.blocks } }
+
+    case 'SET_USE_WEEK_PATTERN':
+      return { ...state, useWeekPattern: action.payload }
+
+    case 'APPLY_EDIT_TEMPLATE': {
+      const weekdays = action.payload
+      const editDraft = { ...state.editDraft }
+      for (const dowStr of Object.keys(weekdays)) {
+        const dow = parseInt(dowStr)
+        const blocks = weekdays[dow as keyof typeof weekdays]
+        if (blocks) {
+          editDraft[getDateKeyForDow(state.editBaseWeekMonday, dow)] = blocks
+        }
+      }
+      return { ...state, editDraft, useWeekPattern: true }
+    }
+
+    case 'SAVE_AVAILABILITY': {
+      const { until } = action.payload
+      const weekdays: Partial<Record<number, AvailabilityBlock[]>> = {}
+      const [by, bm, bd] = state.editBaseWeekMonday.split('-').map(Number)
+      const baseMonday = new Date(by, bm - 1, bd)
+
+      if (state.useWeekPattern) {
+        // Derive DOW pattern from base week entries
+        for (let offset = 0; offset <= 6; offset++) {
+          const day = new Date(baseMonday)
+          day.setDate(day.getDate() + offset)
+          const key = toDateKey(day)
+          if (state.editDraft[key]) {
+            weekdays[day.getDay()] = state.editDraft[key]
+          }
+        }
       }
 
-    case 'SAVE_AVAILABILITY':
+      // Carry over existing daily exceptions + add non-base-week overrides
+      const dailyBlocks: Record<string, AvailabilityBlock[]> = { ...state.availability.dailyBlocks }
+      for (const [dateKey, blocks] of Object.entries(state.editDraft)) {
+        if (!isInBaseWeek(dateKey, state.editBaseWeekMonday)) {
+          dailyBlocks[dateKey] = blocks
+        }
+      }
+
       return {
         ...state,
         availability: {
-          ...state.availability,
           isConfigured: true,
-          repeatPattern: {
-            weekdays: state.weekDraft,
-            fromWeekKey: action.payload.weekMondayKey,
-            until: action.payload.until,
-          },
+          dailyBlocks,
+          repeatPattern: state.useWeekPattern
+            ? { weekdays, fromWeekKey: state.editBaseWeekMonday, until }
+            : null,
         },
-        weekDraft: {},
-        weekDraftFromTemplate: false,
+        editDraft: {},
+        editBaseWeekMonday: '',
+        useWeekPattern: true,
         availabilityEditMode: false,
+        selectedDate: state.editPriorDate,
       }
-
-    case 'ENTER_EXCEPTION_EDIT':
-      return {
-        ...state,
-        exceptionEdit: { dateKey: action.payload.dateKey, dow: action.payload.dow },
-        exceptionDraft: action.payload.initialBlocks,
-      }
-    case 'SET_EXCEPTION_DRAFT':
-      return { ...state, exceptionDraft: action.payload }
-    case 'EXIT_EXCEPTION_EDIT':
-      return { ...state, exceptionEdit: null, exceptionDraft: [] }
+    }
 
     case 'SET_DATE_EXCEPTION': {
       const { dateKey, blocks } = action.payload
       if (blocks === null) {
-        // Remove exception — fall back to repeat pattern
         const { [dateKey]: _removed, ...rest } = state.availability.dailyBlocks
         return { ...state, availability: { ...state.availability, dailyBlocks: rest } }
       }

@@ -9,26 +9,60 @@ export function toDateKey(d: Date): string {
 
 export function mondayKey(d: Date): string {
   const date = new Date(d)
-  const dow = date.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
+  const dow = date.getDay()
   const diff = dow === 0 ? -6 : 1 - dow
   date.setDate(date.getDate() + diff)
   return toDateKey(date)
 }
 
+// Returns the date key for a given day-of-week within the week starting on monday (mondayKey string).
+// offset: Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6
+export function getDateKeyForDow(baseMonday: string, dow: number): string {
+  const [y, m, d] = baseMonday.split('-').map(Number)
+  const monday = new Date(y, m - 1, d)
+  const offset = dow === 0 ? 6 : dow - 1
+  monday.setDate(monday.getDate() + offset)
+  return toDateKey(monday)
+}
+
+export function isInBaseWeek(dateKey: string, baseWeekMonday: string): boolean {
+  const [by, bm, bd] = baseWeekMonday.split('-').map(Number)
+  const monday = new Date(by, bm - 1, bd)
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6)
+  const [y, m, d] = dateKey.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  return date >= monday && date <= sunday
+}
+
+// Edit mode: resolve blocks for a date from editDraft (specific date wins, then DOW pattern fallback)
+export function getEditBlocksForDate(
+  date: Date,
+  editDraft: Record<string, AvailabilityBlock[]>,
+  editBaseWeekMonday: string,
+  useWeekPattern: boolean,
+): AvailabilityBlock[] {
+  const dateKey = toDateKey(date)
+  if (Object.prototype.hasOwnProperty.call(editDraft, dateKey)) {
+    return editDraft[dateKey]
+  }
+  if (useWeekPattern && editBaseWeekMonday) {
+    const baseKey = getDateKeyForDow(editBaseWeekMonday, date.getDay())
+    return editDraft[baseKey] ?? []
+  }
+  return []
+}
+
 export function getBlocksForDate(date: Date, avail: AvailabilityState): AvailabilityBlock[] {
   const dateKey = toDateKey(date)
 
-  // 1. Check if explicit dailyBlocks exist for this date
   if (Object.prototype.hasOwnProperty.call(avail.dailyBlocks, dateKey)) {
     return avail.dailyBlocks[dateKey]
   }
 
-  // 2. Check repeatPattern
   if (avail.repeatPattern) {
     const { weekdays, until } = avail.repeatPattern
     const dayOfWeek = date.getDay()
 
-    // Check if date is within the "until" range
     if (until !== undefined) {
       if (dateKey > until) return []
     }
@@ -38,7 +72,6 @@ export function getBlocksForDate(date: Date, avail: AvailabilityState): Availabi
     }
   }
 
-  // 3. No availability
   return []
 }
 
