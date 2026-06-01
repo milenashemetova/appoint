@@ -83,7 +83,6 @@ export default function ScheduleArea() {
   const [viewDropOpen, setViewDropOpen] = useState(false)
   const [createDropOpen, setCreateDropOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
-  const [availUntil, setAvailUntil] = useState<string | undefined>(undefined)
   const [untilModalOpen, setUntilModalOpen] = useState(false)
   const [availTemplateOpen, setAvailTemplateOpen] = useState(false)
   const [savedToast, setSavedToast] = useState<string | null>(null)
@@ -95,7 +94,6 @@ export default function ScheduleArea() {
   }
 
   const enterAvailEdit = () => {
-    setAvailUntil(state.availability.repeatPattern?.until)
     dispatch({ type: 'ENTER_AVAILABILITY_EDIT' })
   }
 
@@ -103,13 +101,12 @@ export default function ScheduleArea() {
   const goNext = () => dispatch({ type: 'SET_DATE', payload: state.viewMode === 'week' ? addWeeks(state.selectedDate, 1) : addDays(state.selectedDate, 1) })
 
   const saveAvailability = () => {
-    dispatch({ type: 'SAVE_AVAILABILITY', payload: { until: availUntil } })
-    const msg = availUntil
-      ? `Доступность настроена до ${formatDate(availUntil)}`
+    dispatch({ type: 'SAVE_AVAILABILITY' })
+    const msg = state.editUntil
+      ? `Доступность настроена до ${formatDate(state.editUntil)}`
       : 'Доступность настроена (повторяется еженедельно)'
     setSavedToast(msg)
     setTimeout(() => setSavedToast(null), 4000)
-    setAvailUntil(undefined)
   }
 
   const { selectedDate, viewMode } = state
@@ -330,7 +327,7 @@ export default function ScheduleArea() {
             </button>
             <button onClick={() => setUntilModalOpen(true)}
               className="text-sm text-blue-500 hover:text-blue-600 font-medium transition-colors flex items-center gap-0.5">
-              {availUntil ? `Использовать до ${formatDate(availUntil)}` : 'Использовать до...'}
+              {state.editUntil ? `Использовать до ${formatDate(state.editUntil)}` : 'Использовать до...'}
               <ChevronRight size={13} />
             </button>
           </div>
@@ -345,17 +342,17 @@ export default function ScheduleArea() {
       {state.createModalState && !editOpen && <CreateSlotDrawer onClose={closeAll} />}
 
       {untilModalOpen && (
-        <AvailabilityUntilModal current={availUntil} onClose={() => setUntilModalOpen(false)}
-          onSelect={date => { setAvailUntil(date); setUntilModalOpen(false) }} />
+        <AvailabilityUntilModal current={state.editUntil} onClose={() => setUntilModalOpen(false)}
+          onSelect={date => { dispatch({ type: 'SET_EDIT_UNTIL', payload: date }); setUntilModalOpen(false) }} />
       )}
 
       {availTemplateOpen && (
         <AvailabilityTemplateDrawer
-          currentUntil={availUntil}
+          currentUntil={state.editUntil}
           onClose={() => setAvailTemplateOpen(false)}
           onApply={(weekdays, until) => {
             dispatch({ type: 'APPLY_EDIT_TEMPLATE', payload: weekdays })
-            if (until) setAvailUntil(until)
+            if (until) dispatch({ type: 'SET_EDIT_UNTIL', payload: until })
             setAvailTemplateOpen(false)
           }}
         />

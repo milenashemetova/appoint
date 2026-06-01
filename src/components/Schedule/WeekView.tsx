@@ -37,6 +37,9 @@ export default function WeekView() {
   const getMinFromY = (y: number) => snapToGrid(Math.max(gridStartMin, gridStartMin + y / PX_PER_MIN), 15)
   const today = new Date(); today.setHours(0, 0, 0, 0)
 
+  const isPastUntil = (day: Date) =>
+    state.availabilityEditMode && state.editUntil !== undefined && toDateKey(day) > state.editUntil
+
   const getSlotsForDay = (day: Date): Slot[] =>
     state.slots.filter(s => {
       if (!isSameDay(s.start, day)) return false
@@ -56,9 +59,9 @@ export default function WeekView() {
     const startMin = getMinFromY(y)
 
     if (state.availabilityEditMode) {
-      // Past days are not editable
+      // Past days and post-until days are not editable
       const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0)
-      if (dayStart < today) return
+      if (dayStart < today || isPastUntil(day)) return
 
       const dateKey = toDateKey(day)
       const existing = getEditBlocksForDate(day, state.editDraft, state.editBaseWeekMonday, state.useWeekPattern)
@@ -156,9 +159,9 @@ export default function WeekView() {
               }}
             >
               <div className="flex items-center justify-center gap-1 px-1">
-                <span className={`text-[10px] uppercase ${isPast && state.availabilityEditMode ? 'text-gray-300' : 'text-gray-400'}`}>{DAYS_SHORT_RU[i]}</span>
+                <span className={`text-[10px] uppercase ${isDimmed && state.availabilityEditMode ? 'text-gray-300' : 'text-gray-400'}`}>{DAYS_SHORT_RU[i]}</span>
                 <span className={`text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full flex-shrink-0 ${
-                  isT ? 'bg-blue-500 text-white' : isPast && state.availabilityEditMode ? 'text-gray-300' : 'text-gray-800'
+                  isT ? 'bg-blue-500 text-white' : isDimmed && state.availabilityEditMode ? 'text-gray-300' : 'text-gray-800'
                 }`}>
                   {day.getDate()}
                 </span>
@@ -217,6 +220,8 @@ export default function WeekView() {
             const laid = layoutSlots(daySlots)
             const isT = isToday(day)
             const isPast = day < today
+            const isAfterUntil = isPastUntil(day)
+            const isDimmed = isPast || isAfterUntil
             const dateKey = toDateKey(day)
 
             // Availability blocks for this column
@@ -247,7 +252,7 @@ export default function WeekView() {
                   <div className="absolute inset-0 pointer-events-none" style={{ height: TOTAL_HEIGHT, backgroundColor: 'rgba(241,245,249,0.92)' }} />
                   {availBlocks.map((block, i) => (
                     <div key={i} className="absolute left-0 right-0 pointer-events-none"
-                      style={{ top: minutesToPx(block.startMin - gridStartMin), height: minutesToPx(block.endMin - block.startMin), backgroundColor: isPast ? 'rgba(255,255,255,0.5)' : '#ffffff', zIndex: 1 }} />
+                      style={{ top: minutesToPx(block.startMin - gridStartMin), height: minutesToPx(block.endMin - block.startMin), backgroundColor: isDimmed ? 'rgba(255,255,255,0.5)' : '#ffffff', zIndex: 1 }} />
                   ))}
                 </>
               )
@@ -257,8 +262,8 @@ export default function WeekView() {
               availMask = <div className="absolute inset-0 pointer-events-none" style={{ height: TOTAL_HEIGHT, backgroundColor: 'rgba(241,245,249,0.92)' }} />
             }
 
-            // Past column in edit mode: overlay + no cursor
-            const pastOverlay = state.availabilityEditMode && isPast ? (
+            // Dimmed column overlay in edit mode (past or post-until)
+            const dimmedOverlay = state.availabilityEditMode && isDimmed ? (
               <div className="absolute inset-0 pointer-events-none z-20" style={{ backgroundColor: 'rgba(255,255,255,0.45)' }} />
             ) : null
 
@@ -267,7 +272,7 @@ export default function WeekView() {
                 key={colIdx}
                 ref={el => { colRefs.current[colIdx] = el }}
                 className={`flex-1 border-l border-gray-100 relative ${
-                  state.availabilityEditMode && isPast ? 'cursor-not-allowed' : 'cursor-crosshair'
+                  state.availabilityEditMode && isDimmed ? 'cursor-not-allowed' : 'cursor-crosshair'
                 }`}
                 style={{ height: TOTAL_HEIGHT }}
                 onMouseDown={e => onMouseDown(e, colIdx, day)}
@@ -275,7 +280,7 @@ export default function WeekView() {
                 <GridLines />
                 {availMask}
                 {isT && <CurrentTimeLine />}
-                {pastOverlay}
+                {dimmedOverlay}
 
                 {/* Slots */}
                 {laid.map(({ slot, col: c, numCols }) => {
@@ -337,9 +342,16 @@ export default function WeekView() {
                   )
                 })()}
 
-                {/* Date key indicator for edit mode (helps user see they're editing specific date) */}
-                {state.availabilityEditMode && !isPast && Object.prototype.hasOwnProperty.call(state.editDraft, dateKey) && (
+                {/* Dot indicator for manually edited dates */}
+                {state.availabilityEditMode && !isDimmed && Object.prototype.hasOwnProperty.call(state.editDraft, dateKey) && (
                   <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-blue-400 pointer-events-none z-10" title="Настроено вручную" />
+                )}
+
+                {/* Post-until label on the first out-of-range column */}
+                {isAfterUntil && state.editUntil && colIdx === days.findIndex(d => toDateKey(d) > state.editUntil!) && (
+                  <div className="absolute inset-x-0 top-4 flex justify-center pointer-events-none z-25">
+                    <span className="text-[9px] text-gray-400 bg-white/80 px-1.5 py-0.5 rounded border border-gray-200">вне периода</span>
+                  </div>
                 )}
               </div>
             )

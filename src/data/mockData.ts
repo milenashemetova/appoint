@@ -66,4 +66,31 @@ export const SLOTS: Slot[] = [
 
   // ── Saturday May 23 ────────────────────────────────────────────────────────
   { id: 's1', title: 'Пилатес', type: 'fixed', status: 'has-bookings', specialistId: 'anna', start: d(5,23,10), end: d(5,23,11), capacity: 8, booked: 3 },
+
+  // ── Current week: June 2026 ────────────────────────────────────────────────
+  // Monday June 1
+  { id: 'jun1a', title: 'Йога', type: 'free', status: 'confirmed', specialistId: 'anna', start: d(6,1,10), end: d(6,1,11,30), clientName: 'Ольга Смирнова', clientPhone: '+7 999 123-45-67', serviceType: 'Йога' },
+  { id: 'jun1b', title: 'Пилатес', type: 'fixed', status: 'has-bookings', specialistId: 'anna', start: d(6,1,14), end: d(6,1,15,30), capacity: 6, booked: 4 },
+
+  // Tuesday June 2
+  { id: 'jun2a', title: 'Индивидуальная тренировка', type: 'free', status: 'confirmed', specialistId: 'anna', start: d(6,2,10), end: d(6,2,11), clientName: 'Екатерина Волкова', clientPhone: '+7 999 234-56-78', serviceType: 'Индивидуальная тренировка' },
+  { id: 'jun2b', title: 'Барре', type: 'fixed', status: 'has-bookings', specialistId: 'anna', start: d(6,2,12), end: d(6,2,13,30), capacity: 5, booked: 3 },
+  { id: 'jun2c', title: 'Массаж спины', type: 'free', status: 'new', specialistId: 'anna', start: d(6,2,16), end: d(6,2,17,30), clientName: 'Марина Сидорова', clientPhone: '+7 999 345-67-89', serviceType: 'Массаж спины' },
+
+  // Wednesday June 3
+  { id: 'jun3a', title: 'Растяжка', type: 'free', status: 'confirmed', specialistId: 'anna', start: d(6,3,9), end: d(6,3,10), clientName: 'Анастасия Белова', clientPhone: '+7 999 456-78-90', serviceType: 'Растяжка' },
+  { id: 'jun3b', title: 'Йога', type: 'free', status: 'waiting', specialistId: 'anna', start: d(6,3,14), end: d(6,3,15,30), clientName: 'Татьяна Козлова', clientPhone: '+7 999 567-89-01', serviceType: 'Йога' },
+
+  // Thursday June 4
+  { id: 'jun4a', title: 'Индивидуальная тренировка', type: 'free', status: 'confirmed', specialistId: 'anna', start: d(6,4,9), end: d(6,4,10,30), clientName: 'Наталья Иванова', clientPhone: '+7 999 678-90-12', serviceType: 'Индивидуальная тренировка' },
+  { id: 'jun4b', title: 'Барре', type: 'fixed', status: 'full', specialistId: 'anna', start: d(6,4,11), end: d(6,4,12,30), capacity: 5, booked: 5 },
+  { id: 'jun4c', title: 'Пилатес', type: 'free', status: 'confirmed', specialistId: 'anna', start: d(6,4,17), end: d(6,4,18,30), clientName: 'Юлия Козлова', clientPhone: '+7 999 789-01-23', serviceType: 'Пилатес' },
+
+  // Friday June 5
+  { id: 'jun5a', title: 'Массаж лица', type: 'free', status: 'confirmed', specialistId: 'anna', start: d(6,5,10), end: d(6,5,11), clientName: 'Ирина Морозова', clientPhone: '+7 999 890-12-34', serviceType: 'Массаж лица' },
+  { id: 'jun5b', title: 'Растяжка', type: 'free', status: 'new', specialistId: 'anna', start: d(6,5,13,30), end: d(6,5,15), clientName: 'Светлана Новикова', clientPhone: '+7 999 901-23-45', serviceType: 'Растяжка' },
+  { id: 'jun5c', title: 'Индивидуальная тренировка', type: 'free', status: 'confirmed', specialistId: 'anna', start: d(6,5,17), end: d(6,5,18,30), clientName: 'Виктория Романова', clientPhone: '+7 999 012-34-56', serviceType: 'Индивидуальная тренировка' },
+
+  // Saturday June 6
+  { id: 'jun6a', title: 'Йога', type: 'fixed', status: 'has-bookings', specialistId: 'anna', start: d(6,6,10), end: d(6,6,11,30), capacity: 8, booked: 5 },
 ]

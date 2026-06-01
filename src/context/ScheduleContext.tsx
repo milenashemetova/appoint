@@ -37,6 +37,7 @@ interface State {
   // Edit mode state — date-keyed draft of availability blocks
   editDraft: Record<string, AvailabilityBlock[]>
   editBaseWeekMonday: string    // Monday of the "template" week
+  editUntil: string | undefined // "YYYY-MM-DD" end date for the pattern being configured
   useWeekPattern: boolean       // checkbox: propagate base week DOW pattern to all weeks
   editPriorDate: Date           // selectedDate before entering edit mode (restored on exit)
 }
@@ -61,9 +62,10 @@ type Action =
   | { type: 'ENTER_AVAILABILITY_EDIT' }
   | { type: 'EXIT_AVAILABILITY_EDIT' }
   | { type: 'SET_EDIT_DAY'; payload: { dateKey: string; blocks: AvailabilityBlock[] } }
+  | { type: 'SET_EDIT_UNTIL'; payload: string | undefined }
   | { type: 'SET_USE_WEEK_PATTERN'; payload: boolean }
   | { type: 'APPLY_EDIT_TEMPLATE'; payload: Partial<Record<number, AvailabilityBlock[]>> }
-  | { type: 'SAVE_AVAILABILITY'; payload: { until?: string } }
+  | { type: 'SAVE_AVAILABILITY' }
   | { type: 'SET_DATE_EXCEPTION'; payload: { dateKey: string; blocks: AvailabilityBlock[] | null } }
 
 const initialState: State = {
@@ -84,6 +86,7 @@ const initialState: State = {
   availabilityEditMode: false,
   editDraft: {},
   editBaseWeekMonday: '',
+  editUntil: undefined,
   useWeekPattern: true,
   editPriorDate: new Date(),
 }
@@ -178,6 +181,7 @@ function reducer(state: State, action: Action): State {
         availabilityEditMode: true,
         editDraft,
         editBaseWeekMonday,
+        editUntil: state.availability.repeatPattern?.until,
         useWeekPattern: true,
         editPriorDate: state.selectedDate,
         selectedDate: baseDate,
@@ -190,12 +194,16 @@ function reducer(state: State, action: Action): State {
         availabilityEditMode: false,
         editDraft: {},
         editBaseWeekMonday: '',
+        editUntil: undefined,
         useWeekPattern: true,
         selectedDate: state.editPriorDate,
       }
 
     case 'SET_EDIT_DAY':
       return { ...state, editDraft: { ...state.editDraft, [action.payload.dateKey]: action.payload.blocks } }
+
+    case 'SET_EDIT_UNTIL':
+      return { ...state, editUntil: action.payload }
 
     case 'SET_USE_WEEK_PATTERN':
       return { ...state, useWeekPattern: action.payload }
@@ -214,7 +222,7 @@ function reducer(state: State, action: Action): State {
     }
 
     case 'SAVE_AVAILABILITY': {
-      const { until } = action.payload
+      const until = state.editUntil
       const weekdays: Partial<Record<number, AvailabilityBlock[]>> = {}
       const [by, bm, bd] = state.editBaseWeekMonday.split('-').map(Number)
       const baseMonday = new Date(by, bm - 1, bd)
@@ -250,6 +258,7 @@ function reducer(state: State, action: Action): State {
         },
         editDraft: {},
         editBaseWeekMonday: '',
+        editUntil: undefined,
         useWeekPattern: true,
         availabilityEditMode: false,
         selectedDate: state.editPriorDate,
