@@ -1,15 +1,15 @@
 import { ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react'
-import { useState, useMemo } from 'react'
-import type { AvailabilityBlock } from '../../types'
+import { useState } from 'react'
 import { useSchedule } from '../../context/ScheduleContext'
-import { MONTHS_RU, MONTHS_RU_GEN, addDays, addWeeks, weekDays } from '../../utils/dateUtils'
-import { mondayKey, toDateKey } from '../../utils/availabilityUtils'
+import { MONTHS_RU, MONTHS_RU_GEN, addDays, addWeeks } from '../../utils/dateUtils'
+import { mondayKey } from '../../utils/availabilityUtils'
 import WeekView from './WeekView'
 import DayView from './DayView'
 import SlotModal from '../Modals/SlotModal'
 import SlotPopover from '../Modals/SlotPopover'
 import CreateSlotDrawer from '../Modals/CreateSlotDrawer'
 import AvailabilityUntilModal from '../Modals/AvailabilityUntilModal'
+import AvailabilityTemplateDrawer from '../Modals/AvailabilityTemplateDrawer'
 
 // ── Multi-select dropdown ────────────────────────────────────────────────────
 
@@ -47,7 +47,6 @@ function MultiSelectDropdown({
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-gray-100 py-1 min-w-[200px]">
-            {/* Select all */}
             <button
               onClick={onSelectAll}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -106,23 +105,10 @@ export default function ScheduleArea() {
   const [editOpen, setEditOpen] = useState(false)
 
   // Availability edit mode local state
-  const [availRepeat, setAvailRepeat] = useState(true)  // on by default
   const [availUntil, setAvailUntil] = useState<string | undefined>(undefined)
   const [untilModalOpen, setUntilModalOpen] = useState(false)
+  const [availTemplateOpen, setAvailTemplateOpen] = useState(false)
   const [savedToast, setSavedToast] = useState<string | null>(null)
-  const [patternSourceDate, setPatternSourceDate] = useState<Date | null>(null)
-
-  // Pattern for the source week (by day-of-week), used to detect exceptions
-  const patternByDow = useMemo<Partial<Record<number, AvailabilityBlock[]>>>(() => {
-    if (!availRepeat || !patternSourceDate) return {}
-    const result: Partial<Record<number, AvailabilityBlock[]>> = {}
-    for (const day of weekDays(patternSourceDate)) {
-      const key = toDateKey(day)
-      const blocks = state.draftAvailability[key]
-      if (blocks?.length) result[day.getDay()] = blocks
-    }
-    return result
-  }, [availRepeat, patternSourceDate, state.draftAvailability])
 
   const closeAll = () => {
     setEditOpen(false)
@@ -131,61 +117,26 @@ export default function ScheduleArea() {
   }
 
   const enterAvailEdit = () => {
-    setAvailRepeat(true)
-    setAvailUntil(undefined)
-    setPatternSourceDate(state.selectedDate)
+    setAvailUntil(state.availability.repeatPattern?.until)
     dispatch({ type: 'ENTER_AVAILABILITY_EDIT' })
   }
 
   const cancelAvailEdit = () => {
-    setPatternSourceDate(null)
     dispatch({ type: 'EXIT_AVAILABILITY_EDIT' })
   }
 
-  const propagateDraftToWeek = (newDate: Date) => {
-    if (!state.availabilityEditMode || state.viewMode !== 'week') return
-    // Use the pattern source week (or current week if no source set)
-    const sourceWeekDays = weekDays(patternSourceDate ?? state.selectedDate)
-    const pattern: Partial<Record<number, typeof state.draftAvailability[string]>> = {}
-    for (const day of sourceWeekDays) {
-      const key = toDateKey(day)
-      if (state.draftAvailability[key]?.length) pattern[day.getDay()] = state.draftAvailability[key]
-    }
-    for (const day of weekDays(newDate)) {
-      const key = toDateKey(day)
-      if (!state.draftAvailability[key] && pattern[day.getDay()]) {
-        dispatch({ type: 'SET_DRAFT_DAY', payload: { dateKey: key, blocks: pattern[day.getDay()]! } })
-      }
-    }
-  }
-
-  const goBack = () => {
-    const newDate = state.viewMode === 'week' ? addWeeks(state.selectedDate, -1) : addDays(state.selectedDate, -1)
-    propagateDraftToWeek(newDate)
-    dispatch({ type: 'SET_DATE', payload: newDate })
-  }
-  const goNext = () => {
-    const newDate = state.viewMode === 'week' ? addWeeks(state.selectedDate, 1) : addDays(state.selectedDate, 1)
-    propagateDraftToWeek(newDate)
-    dispatch({ type: 'SET_DATE', payload: newDate })
-  }
+  const goBack = () => dispatch({ type: 'SET_DATE', payload: state.viewMode === 'week' ? addWeeks(state.selectedDate, -1) : addDays(state.selectedDate, -1) })
+  const goNext = () => dispatch({ type: 'SET_DATE', payload: state.viewMode === 'week' ? addWeeks(state.selectedDate, 1) : addDays(state.selectedDate, 1) })
 
   const saveAvailability = () => {
     const weekMondayKey = mondayKey(state.selectedDate)
-    dispatch({
-      type: 'SAVE_AVAILABILITY',
-      payload: { repeatsWeekly: availRepeat, until: availUntil, weekMondayKey },
-    })
+    dispatch({ type: 'SAVE_AVAILABILITY', payload: { until: availUntil, weekMondayKey } })
     const msg = availUntil
       ? `Доступность настроена до ${formatDate(availUntil)}`
-      : availRepeat
-        ? 'Доступность настроена (повторяется еженедельно)'
-        : 'Доступность сохранена'
+      : 'Доступность настроена (повторяется еженедельно)'
     setSavedToast(msg)
     setTimeout(() => setSavedToast(null), 4000)
-    setAvailRepeat(true)
     setAvailUntil(undefined)
-    setPatternSourceDate(null)
   }
 
   const { selectedDate, viewMode } = state
@@ -216,10 +167,7 @@ export default function ScheduleArea() {
       {/* Control bar — switches between normal and edit mode */}
       {state.availabilityEditMode ? (
         <div className="flex items-center justify-between px-5 py-2 flex-shrink-0 gap-3 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <h1 className="text-base font-semibold text-gray-900">Настройте доступность локации</h1>
-            {navArrows}
-          </div>
+          <h1 className="text-base font-semibold text-gray-900">Настройте доступность локации</h1>
           <div className="flex items-center gap-2">
             <button
               onClick={cancelAvailEdit}
@@ -238,7 +186,6 @@ export default function ScheduleArea() {
       ) : (
         <div className="flex items-center justify-between px-5 py-2 flex-shrink-0 gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            {/* Title */}
             <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
 
             {/* View dropdown */}
@@ -268,13 +215,11 @@ export default function ScheduleArea() {
               )}
             </div>
 
-            {/* Navigation */}
             {navArrows}
           </div>
 
           {/* Right side */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Specialist multi-select */}
             <MultiSelectDropdown
               label="Все специалисты"
               items={specialists.map(s => ({ id: s.id, name: s.name, color: s.avatarColor, initials: s.initials }))}
@@ -295,7 +240,6 @@ export default function ScheduleArea() {
               }}
             />
 
-            {/* Space multi-select */}
             <MultiSelectDropdown
               label="Все пространства"
               items={spaces.map(s => ({ id: s.id, name: s.name }))}
@@ -316,7 +260,6 @@ export default function ScheduleArea() {
               }}
             />
 
-            {/* Day toggle (only in day view) */}
             {viewMode === 'day' && (
               <div className="flex rounded-lg border border-gray-200 overflow-hidden">
                 {(['specialists', 'spaces'] as const).map(toggle => (
@@ -331,7 +274,6 @@ export default function ScheduleArea() {
               </div>
             )}
 
-            {/* Create button */}
             <div className="relative">
               <div className="flex rounded-lg overflow-hidden border border-blue-500">
                 <button
@@ -382,7 +324,7 @@ export default function ScheduleArea() {
       {/* Main grid area */}
       <div className="flex-1 overflow-hidden border-t border-gray-100">
         {viewMode === 'week'
-          ? <WeekView availRepeat={availRepeat} patternByDow={patternByDow} patternSourceDate={patternSourceDate} />
+          ? <WeekView />
           : <DayView />
         }
       </div>
@@ -393,17 +335,15 @@ export default function ScheduleArea() {
           <div className="flex items-center gap-3 text-xs">
             {state.availability.isConfigured ? (
               <>
-                {/* Legend */}
-                <span className="flex items-center gap-1.5 text-gray-400">
-                  <span className="w-3 h-3 rounded-sm bg-white border border-gray-300 inline-block" />
-                  <span>Открыто</span>
+                <span className="flex items-center gap-1.5 text-gray-500">
+                  <span className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-200 inline-block" />
+                  <span>фиксированные события</span>
                 </span>
-                <span className="flex items-center gap-1.5 text-gray-400">
-                  <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: 'rgba(241,245,249,0.92)', border: '1px solid #e2e8f0' }} />
-                  <span>Закрыто</span>
+                <span className="flex items-center gap-1.5 text-gray-500">
+                  <span className="w-3 h-3 rounded-sm bg-white border border-gray-300 inline-block" />
+                  <span>свободное событие</span>
                 </span>
                 <span className="text-gray-200">|</span>
-                {/* Period info */}
                 {state.availability.repeatPattern ? (
                   <span className="flex items-center gap-1 text-green-600 font-medium">
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
@@ -434,26 +374,39 @@ export default function ScheduleArea() {
 
       {/* Availability footer — edit mode */}
       {state.availabilityEditMode && (
-        <div className="border-t border-blue-100 px-5 py-3 flex items-center justify-between flex-shrink-0 bg-blue-50/60">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <span
-              className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors ${availRepeat ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}
-              onClick={() => setAvailRepeat(v => !v)}
-            >
-              {availRepeat && (
-                <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                  <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              )}
+        <div className="border-t border-blue-100 px-5 py-3 flex items-center justify-between flex-shrink-0 bg-blue-50/60 gap-3">
+          {/* Legend */}
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full border-2 border-blue-400 inline-block bg-white" />
+              <span>открыто для свободной записи</span>
             </span>
-            <span className="text-sm text-gray-700">Использовать настройку до конца выбранного периода</span>
-          </label>
-          <button
-            onClick={() => setUntilModalOpen(true)}
-            className="text-sm text-blue-500 hover:text-blue-600 font-medium transition-colors flex-shrink-0 ml-4"
-          >
-            {availUntil ? `Использовать до ${formatDate(availUntil)}` : 'Использовать до...'}
-          </button>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full border-2 border-gray-300 inline-block bg-gray-200" />
+              <span>закрыто для свободной записи</span>
+            </span>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => setAvailTemplateOpen(true)}
+              className={`px-3 py-1.5 text-sm rounded-lg border transition-colors font-medium ${
+                state.weekDraftFromTemplate
+                  ? 'border-blue-400 text-blue-600 bg-blue-50 hover:bg-blue-100'
+                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {state.weekDraftFromTemplate ? 'Шаблон ✓' : 'Шаблоны'}
+            </button>
+            <button
+              onClick={() => setUntilModalOpen(true)}
+              className="text-sm text-blue-500 hover:text-blue-600 font-medium transition-colors"
+            >
+              {availUntil ? `Использовать до ${formatDate(availUntil)}` : 'Использовать до...'}
+              <ChevronRight size={13} className="inline ml-0.5 -mt-0.5" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -484,6 +437,19 @@ export default function ScheduleArea() {
           current={availUntil}
           onClose={() => setUntilModalOpen(false)}
           onSelect={date => { setAvailUntil(date); setUntilModalOpen(false) }}
+        />
+      )}
+
+      {/* Template drawer */}
+      {availTemplateOpen && (
+        <AvailabilityTemplateDrawer
+          currentUntil={availUntil}
+          onClose={() => setAvailTemplateOpen(false)}
+          onApply={(weekdays, until) => {
+            dispatch({ type: 'APPLY_WEEK_TEMPLATE', payload: weekdays })
+            if (until) setAvailUntil(until)
+            setAvailTemplateOpen(false)
+          }}
         />
       )}
 
