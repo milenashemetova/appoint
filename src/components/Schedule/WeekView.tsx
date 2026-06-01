@@ -45,6 +45,8 @@ export default function WeekView() {
       if (!isSameDay(s.start, day)) return false
       if (s.specialistId && !state.selectedSpecialistIds.includes(s.specialistId)) return false
       if (s.spaceId && !state.selectedSpaceIds.includes(s.spaceId)) return false
+      if (s.type === 'fixed' && !state.showFixed) return false
+      if (s.type === 'free' && !state.showFree) return false
       return true
     })
 

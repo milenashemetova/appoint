@@ -27,6 +27,8 @@ interface State {
   selectedSpecialistIds: string[]
   selectedSpaceIds: string[]
   slots: Slot[]
+  showFixed: boolean
+  showFree: boolean
   requests: BookingRequest[]
   selectedSlot: Slot | null
   selectedSlotRect: SlotRect | null
@@ -57,6 +59,8 @@ type Action =
   | { type: 'ADD_SLOT'; payload: Slot }
   | { type: 'UPDATE_SLOT'; payload: Slot }
   | { type: 'DELETE_SLOT'; payload: string }
+  | { type: 'TOGGLE_SHOW_FIXED' }
+  | { type: 'TOGGLE_SHOW_FREE' }
   | { type: 'CONFIRM_REQUEST'; payload: string }
   | { type: 'REJECT_REQUEST'; payload: string }
   | { type: 'ENTER_AVAILABILITY_EDIT' }
@@ -77,6 +81,8 @@ const initialState: State = {
   selectedSpecialistIds: ['anna'],
   selectedSpaceIds: ['zal-a'],
   slots: SLOTS,
+  showFixed: true,
+  showFree: true,
   requests: INITIAL_REQUESTS,
   selectedSlot: null,
   selectedSlotRect: null,
@@ -122,6 +128,8 @@ function reducer(state: State, action: Action): State {
     }
     case 'UPDATE_SLOT': return { ...state, slots: state.slots.map(s => s.id === action.payload.id ? action.payload : s) }
     case 'DELETE_SLOT': return { ...state, slots: state.slots.filter(s => s.id !== action.payload), selectedSlot: null, selectedSlotRect: null }
+    case 'TOGGLE_SHOW_FIXED': return { ...state, showFixed: !state.showFixed }
+    case 'TOGGLE_SHOW_FREE': return { ...state, showFree: !state.showFree }
     case 'CONFIRM_REQUEST': {
       const req = state.requests.find(r => r.id === action.payload)
       if (!req) return state

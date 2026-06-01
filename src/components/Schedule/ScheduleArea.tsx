@@ -260,17 +260,42 @@ export default function ScheduleArea() {
       {/* Footer — normal mode */}
       {!state.availabilityEditMode && (
         <div className="border-t border-gray-100 px-5 py-2.5 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-3 text-xs">
-            {state.availability.isConfigured ? (
+          <div className="flex items-center gap-4 text-xs">
+            {/* Filter checkboxes */}
+            <button
+              onClick={() => dispatch({ type: 'TOGGLE_SHOW_FIXED' })}
+              className="flex items-center gap-2 cursor-pointer select-none hover:opacity-80 transition-opacity"
+            >
+              <span className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors ${
+                state.showFixed ? 'bg-indigo-500' : 'bg-gray-200'
+              }`}>
+                {state.showFixed && (
+                  <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                    <path d="M1 4.5L4 7.5L10 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </span>
+              <span className="text-gray-600 font-medium">фиксированные услуги</span>
+            </button>
+
+            <button
+              onClick={() => dispatch({ type: 'TOGGLE_SHOW_FREE' })}
+              className="flex items-center gap-2 cursor-pointer select-none hover:opacity-80 transition-opacity"
+            >
+              <span className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors ${
+                state.showFree ? 'bg-green-500' : 'bg-gray-200'
+              }`}>
+                {state.showFree && (
+                  <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                    <path d="M1 4.5L4 7.5L10 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </span>
+              <span className="text-gray-600 font-medium">записи</span>
+            </button>
+
+            {state.availability.isConfigured && (
               <>
-                <span className="flex items-center gap-1.5 text-gray-500">
-                  <span className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-200 inline-block" />
-                  <span>фиксированные события</span>
-                </span>
-                <span className="flex items-center gap-1.5 text-gray-500">
-                  <span className="w-3 h-3 rounded-sm bg-white border border-gray-300 inline-block" />
-                  <span>свободное событие</span>
-                </span>
                 <span className="text-gray-200">|</span>
                 {state.availability.repeatPattern ? (
                   <span className="flex items-center gap-1 text-green-600 font-medium">
@@ -287,8 +312,6 @@ export default function ScheduleArea() {
                   <span className="text-gray-500">Разовая настройка</span>
                 )}
               </>
-            ) : (
-              <span className="text-gray-400 italic">Доступность не настроена — клиенты не видят слотов для записи</span>
             )}
           </div>
           <button onClick={enterAvailEdit}
