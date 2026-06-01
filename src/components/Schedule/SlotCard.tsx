@@ -12,9 +12,10 @@ interface Props {
   numCols: number
   extraCount?: number
   compact?: boolean
+  ghost?: boolean
 }
 
-export default function SlotCard({ slot, col, numCols, extraCount, compact = false }: Props) {
+export default function SlotCard({ slot, col, numCols, extraCount, compact = false, ghost = false }: Props) {
   const { dispatch } = useSchedule()
   const style = getSlotStyle(slot)
   const top = slotTop(slot)
@@ -37,6 +38,7 @@ export default function SlotCard({ slot, col, numCols, extraCount, compact = fal
   const showMeta = cardH >= 30
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (ghost) return
     e.stopPropagation()
     const rect = e.currentTarget.getBoundingClientRect()
     dispatch({ type: 'SELECT_SLOT', payload: slot })
@@ -44,6 +46,39 @@ export default function SlotCard({ slot, col, numCols, extraCount, compact = fal
   }
 
   const borderRadius = isFree ? '8px' : '4px'
+
+  if (ghost) {
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          top: `${top}px`,
+          height: `${cardH}px`,
+          left: `${leftPx}px`,
+          right: '2px',
+          zIndex: col + 1,
+          backgroundColor: 'rgba(255,255,255,0.6)',
+          borderColor: style.borderColor,
+          borderWidth: '1.5px',
+          borderStyle: 'dashed',
+          borderRadius,
+        }}
+        className="overflow-hidden pointer-events-none select-none flex"
+      >
+        <div className="w-1 flex-shrink-0 self-stretch" style={{ backgroundColor: style.barColor, opacity: 0.4 }} />
+        <div className="flex-1 min-w-0 px-2 py-1.5 overflow-hidden">
+          <div className="font-semibold text-[12px] leading-snug truncate pr-5" style={{ color: style.textColor, opacity: 0.5 }}>
+            {displayTitle}
+          </div>
+          {!compact && cardH >= 42 && (
+            <div className="text-[11px] leading-tight mt-0.5 truncate" style={{ color: style.subTextColor, opacity: 0.4 }}>
+              {fmtTime(slot.start)}-{fmtTime(slot.end)}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
