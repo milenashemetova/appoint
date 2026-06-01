@@ -36,6 +36,9 @@ interface State {
   // Abstract week draft (keyed by getDay(): 0=Sun..6=Sat)
   weekDraft: Partial<Record<number, AvailabilityBlock[]>>
   weekDraftFromTemplate: boolean
+  // Single-day exception edit
+  exceptionEdit: { dateKey: string; dow: number } | null
+  exceptionDraft: AvailabilityBlock[]
 }
 
 type Action =
@@ -61,6 +64,9 @@ type Action =
   | { type: 'APPLY_WEEK_TEMPLATE'; payload: Partial<Record<number, AvailabilityBlock[]>> }
   | { type: 'SAVE_AVAILABILITY'; payload: { until?: string; weekMondayKey: string } }
   | { type: 'SET_DATE_EXCEPTION'; payload: { dateKey: string; blocks: AvailabilityBlock[] | null } }
+  | { type: 'ENTER_EXCEPTION_EDIT'; payload: { dateKey: string; dow: number; initialBlocks: AvailabilityBlock[] } }
+  | { type: 'SET_EXCEPTION_DRAFT'; payload: AvailabilityBlock[] }
+  | { type: 'EXIT_EXCEPTION_EDIT' }
 
 const initialState: State = {
   locationTab: 'schedule',
@@ -80,6 +86,8 @@ const initialState: State = {
   availabilityEditMode: false,
   weekDraft: {},
   weekDraftFromTemplate: false,
+  exceptionEdit: null,
+  exceptionDraft: [],
 }
 
 function reducer(state: State, action: Action): State {
@@ -184,6 +192,17 @@ function reducer(state: State, action: Action): State {
         weekDraftFromTemplate: false,
         availabilityEditMode: false,
       }
+
+    case 'ENTER_EXCEPTION_EDIT':
+      return {
+        ...state,
+        exceptionEdit: { dateKey: action.payload.dateKey, dow: action.payload.dow },
+        exceptionDraft: action.payload.initialBlocks,
+      }
+    case 'SET_EXCEPTION_DRAFT':
+      return { ...state, exceptionDraft: action.payload }
+    case 'EXIT_EXCEPTION_EDIT':
+      return { ...state, exceptionEdit: null, exceptionDraft: [] }
 
     case 'SET_DATE_EXCEPTION': {
       const { dateKey, blocks } = action.payload

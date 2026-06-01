@@ -159,12 +159,12 @@ export default function ScheduleArea() {
 
   return (
     <div className={`flex-1 flex flex-col min-w-0 bg-white rounded-xl overflow-hidden transition-all ${
-      state.availabilityEditMode
+      state.availabilityEditMode || state.exceptionEdit
         ? 'border-2 border-blue-500'
         : 'border border-slate-200'
     }`}>
 
-      {/* Control bar — switches between normal and edit mode */}
+      {/* Control bar — switches between normal / exception edit / availability edit mode */}
       {state.availabilityEditMode ? (
         <div className="flex items-center justify-between px-5 py-2 flex-shrink-0 gap-3 border-b border-gray-100">
           <h1 className="text-base font-semibold text-gray-900">Настройте доступность локации</h1>
@@ -177,6 +177,27 @@ export default function ScheduleArea() {
             </button>
             <button
               onClick={saveAvailability}
+              className="px-4 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium transition-colors"
+            >
+              Сохранить
+            </button>
+          </div>
+        </div>
+      ) : state.exceptionEdit ? (
+        <div className="flex items-center justify-between px-5 py-2 flex-shrink-0 gap-3 border-b border-gray-100">
+          <h1 className="text-base font-semibold text-gray-900">Отредактируйте время работы</h1>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => dispatch({ type: 'EXIT_EXCEPTION_EDIT' })}
+              className="px-4 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Отменить
+            </button>
+            <button
+              onClick={() => {
+                dispatch({ type: 'SET_DATE_EXCEPTION', payload: { dateKey: state.exceptionEdit!.dateKey, blocks: state.exceptionDraft } })
+                dispatch({ type: 'EXIT_EXCEPTION_EDIT' })
+              }}
               className="px-4 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium transition-colors"
             >
               Сохранить
@@ -330,7 +351,7 @@ export default function ScheduleArea() {
       </div>
 
       {/* Availability footer — normal mode */}
-      {!state.availabilityEditMode && (
+      {!state.availabilityEditMode && !state.exceptionEdit && (
         <div className="border-t border-gray-100 px-5 py-2.5 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3 text-xs">
             {state.availability.isConfigured ? (
@@ -372,8 +393,8 @@ export default function ScheduleArea() {
         </div>
       )}
 
-      {/* Availability footer — edit mode */}
-      {state.availabilityEditMode && (
+      {/* Availability footer — abstract week edit mode */}
+      {state.availabilityEditMode && !state.exceptionEdit && (
         <div className="border-t border-blue-100 px-5 py-3 flex items-center justify-between flex-shrink-0 bg-blue-50/60 gap-3">
           {/* Legend */}
           <div className="flex items-center gap-4 text-xs text-gray-500">
