@@ -1,7 +1,9 @@
-import { ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Check, AlertTriangle, X } from 'lucide-react'
 import { useState } from 'react'
 import { useSchedule } from '../../context/ScheduleContext'
-import { MONTHS_RU, MONTHS_RU_GEN, addDays, addWeeks } from '../../utils/dateUtils'
+import { MONTHS_RU, MONTHS_RU_GEN, addDays, addWeeks, fmtTime } from '../../utils/dateUtils'
+import type { Slot } from '../../types'
+import { getEditBlocksForDate, toDateKey, isTimeAvailable } from '../../utils/availabilityUtils'
 import WeekView from './WeekView'
 import DayView from './DayView'
 import SlotModal from '../Modals/SlotModal'
@@ -76,6 +78,27 @@ function formatDate(dateStr: string): string {
   return `${d} ${MONTHS_RU_GEN[m - 1]} ${y}`
 }
 
+function findConflicts(
+  slots: Slot[],
+  editDraft: Record<string, import('../../types').AvailabilityBlock[]>,
+  editBaseWeekMonday: string,
+  useWeekPattern: boolean,
+  editUntil: string | undefined,
+): Slot[] {
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  return slots.filter(s => {
+    if (s.type !== 'free') return false
+    if (s.start < today) return false
+    const dateKey = toDateKey(s.start)
+    if (editUntil && dateKey > editUntil) return false
+    const blocks = getEditBlocksForDate(s.start, editDraft, editBaseWeekMonday, useWeekPattern)
+    if (blocks.length === 0) return true
+    const sMin = s.start.getHours() * 60 + s.start.getMinutes()
+    const eMin = s.end.getHours() * 60 + s.end.getMinutes()
+    return !isTimeAvailable(sMin, eMin, blocks)
+  })
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 
 export default function ScheduleArea() {
@@ -86,6 +109,7 @@ export default function ScheduleArea() {
   const [untilModalOpen, setUntilModalOpen] = useState(false)
   const [availTemplateOpen, setAvailTemplateOpen] = useState(false)
   const [savedToast, setSavedToast] = useState<string | null>(null)
+  const [conflictSlots, setConflictSlots] = useState<Slot[] | null>(null)
 
   const closeAll = () => {
     setEditOpen(false)
@@ -101,6 +125,13 @@ export default function ScheduleArea() {
   const goNext = () => dispatch({ type: 'SET_DATE', payload: state.viewMode === 'week' ? addWeeks(state.selectedDate, 1) : addDays(state.selectedDate, 1) })
 
   const saveAvailability = () => {
+    const conflicts = findConflicts(
+      state.slots, state.editDraft, state.editBaseWeekMonday, state.useWeekPattern, state.editUntil,
+    )
+    if (conflicts.length > 0) {
+      setConflictSlots(conflicts)
+      return
+    }
     dispatch({ type: 'SAVE_AVAILABILITY' })
     const msg = state.editUntil
       ? `Доступность настроена до ${formatDate(state.editUntil)}`
@@ -389,6 +420,64 @@ export default function ScheduleArea() {
             </svg>
           </span>
           {savedToast}
+        </div>
+      )}
+
+      {/* Conflict modal */}
+      {conflictSlots && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" onClick={() => setConflictSlots(null)}>
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+          <div
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setConflictSlots(null)}
+              className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 transition-colors"
+            >
+              <X size={15} />
+            </button>
+
+            <div className="flex items-start gap-3">
+              <span className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <AlertTriangle size={18} className="text-red-500" />
+              </span>
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Невозможно сохранить</h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {conflictSlots.length === 1
+                    ? 'Одна запись конфликтует с новым расписанием доступности.'
+                    : `${conflictSlots.length} ${conflictSlots.length < 5 ? 'записи конфликтуют' : 'записей конфликтуют'} с новым расписанием доступности.`}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-red-100 bg-red-50 divide-y divide-red-100 max-h-52 overflow-y-auto">
+              {conflictSlots.map(s => (
+                <div key={s.id} className="px-3 py-2.5 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{s.clientName ?? s.title}</p>
+                    <p className="text-xs text-gray-500 truncate">{s.title}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-xs font-medium text-red-600">{fmtTime(s.start)}–{fmtTime(s.end)}</p>
+                    <p className="text-[11px] text-gray-400">
+                      {s.start.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xs text-gray-400 text-center">Измените доступность или перенесите конфликтующие записи</p>
+
+            <button
+              onClick={() => setConflictSlots(null)}
+              className="w-full py-2.5 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+            >
+              Понятно
+            </button>
+          </div>
         </div>
       )}
     </div>
