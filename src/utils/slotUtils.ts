@@ -1,4 +1,4 @@
-import type { Slot, LayoutedSlot, SlotStatus } from '../types'
+import type { Slot, LayoutedSlot } from '../types'
 import { toMinutes } from './dateUtils'
 
 // ─── Layout algorithm ──────────────────────────────────────────────────────

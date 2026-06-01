@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pencil, Trash2, Users, Clock, User, Box, RefreshCw, LayoutGrid, X } from 'lucide-react'
+import { Pencil, Trash2, Users, Clock, User, Box, LayoutGrid, X } from 'lucide-react'
 import type { Slot } from '../../types'
 import type { SlotRect } from '../../context/ScheduleContext'
 import { useSchedule } from '../../context/ScheduleContext'

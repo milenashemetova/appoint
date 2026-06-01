@@ -147,7 +147,8 @@ export default function WeekView() {
           const isT = isToday(day)
           const dateKey = toDateKey(day)
           const hasException = Object.prototype.hasOwnProperty.call(state.availability.dailyBlocks, dateKey)
-          const isPast = day < today
+          const isAfterUntil = isPastUntil(day)
+          const isDimmed = day < today || isAfterUntil
 
           return (
             <div

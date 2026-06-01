@@ -39,7 +39,6 @@ const REPEAT_OPTIONS: { value: RepeatMode; label: string }[] = [
   { value: 'weekdays', label: 'По будням' },
 ]
 
-const DATE_FMT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
 
 interface SlotModalProps {
   isOpen: boolean
